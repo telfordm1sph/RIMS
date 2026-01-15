@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Services;
+
+use App\Repositories\RequestTypeRepository;
+
+class RequestTypeService
+{
+    protected RequestTypeRepository $repository;
+
+    public function __construct(RequestTypeRepository $repository)
+    {
+        $this->repository = $repository;
+    }
+
+    /**
+     * Get all request types grouped by category
+     */
+    public function getAllGrouped(): array
+    {
+        return $this->repository->getAllGrouped();
+    }
+
+
+
+    /**
+     * Get request types formatted for form
+     */
+    public function getRequestCatalog(): array
+    {
+        $requestTypes = $this->repository->getAllActive(); // Eloquent Collection
+
+        $catalog = $requestTypes->groupBy('request_category')->map(function ($group) {
+            return [
+                'category' => $group->first()->request_category,
+                'items' => $group->pluck('request_name')->toArray(),
+            ];
+        })->values()->toArray();
+
+        return $catalog;
+    }
+    public function getLocationList()
+    {
+
+        return $this->repository->getLocationList();
+    }
+
+
+
+    /**
+     * Get all request types for table display (flat array)
+     */
+    public function getAllForTable()
+    {
+        return $this->repository->getAllForTable();
+    }
+
+    /**
+     * Create a new request type
+     */
+    public function create(array $data)
+    {
+        return $this->repository->create($data);
+    }
+
+    /**
+     * Update an existing request type
+     */
+    public function update(int $id, array $data)
+    {
+        return $this->repository->update($id, $data);
+    }
+
+    /**
+     * Delete a request type
+     */
+    public function delete(int $id): bool
+    {
+        return $this->repository->delete($id);
+    }
+
+    /**
+     * Find request type by ID
+     */
+    public function findById(int $id)
+    {
+        return $this->repository->findById($id);
+    }
+}
