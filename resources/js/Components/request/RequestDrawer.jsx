@@ -13,8 +13,7 @@ import {
 import { PlusOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
-
-const LOCATION_OPTIONS = ["Office 1", "Office 2", "Warehouse"];
+const { TextArea } = Input;
 
 const RequestDrawer = ({
     open,
@@ -25,8 +24,12 @@ const RequestDrawer = ({
     locations,
 }) => {
     const [rows, setRows] = useState([]);
+    const [purpose, setPurpose] = useState("");
 
-    useEffect(() => setRows(item?.items || []), [item]);
+    useEffect(() => {
+        setRows(item?.items || []);
+        setPurpose(item?.purpose || "");
+    }, [item]);
 
     const addRow = () =>
         setRows([
@@ -55,7 +58,7 @@ const RequestDrawer = ({
             location: r.location === "Other" ? r.location_other : r.location,
             qty: r.qty,
         }));
-        onSave(finalRows);
+        onSave({ items: finalRows, purpose });
         onClose();
     };
 
@@ -74,6 +77,20 @@ const RequestDrawer = ({
             onClose={onClose}
             size={900}
         >
+            {/* Purpose Field */}
+            <div style={{ marginBottom: 16 }}>
+                <Text strong>Purpose of Request</Text>
+                <TextArea
+                    placeholder="Enter purpose of request"
+                    value={purpose}
+                    onChange={(e) => setPurpose(e.target.value)}
+                    rows={3}
+                    style={{ marginTop: 8 }}
+                />
+            </div>
+
+            <Divider />
+
             {rows.map((row, i) => (
                 <div
                     key={i}

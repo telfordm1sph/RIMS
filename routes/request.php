@@ -21,4 +21,6 @@ Route::prefix($app_name)
         Route::get('/staff/{empId}', [RequestController::class, 'getStaffList'])->name('staff.list');
 
         Route::get('/locations', [RequestController::class, 'getLocations'])->name('locations.list');
+
+        Route::post('/store', [RequestController::class, 'store'])->name('request.store');
     });

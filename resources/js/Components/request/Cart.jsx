@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Button, Empty, Space, Tag, Divider } from "antd";
+import { Card, Button, Empty, Space, Tag, Divider, Badge } from "antd";
 import {
     ShoppingCartOutlined,
     EditOutlined,
@@ -36,9 +36,23 @@ const Cart = ({ cart, onEdit, onRemove }) => (
                                 <Space>
                                     <b>{item.name}</b>
                                     <Tag color="blue">{item.category}</Tag>
+                                    {item.mode === "bulk" && (
+                                        <Badge
+                                            count="BULK"
+                                            style={{
+                                                backgroundColor: "#52c41a",
+                                            }}
+                                        />
+                                    )}
                                 </Space>
                                 <div style={{ color: "#888", marginTop: 4 }}>
-                                    {item.items.length} location(s)
+                                    {item.mode === "bulk"
+                                        ? `${
+                                              item.bulkData?.items?.length || 0
+                                          } item(s) selected`
+                                        : `${
+                                              item.items?.length || 0
+                                          } location(s)`}
                                 </div>
                             </div>
 
