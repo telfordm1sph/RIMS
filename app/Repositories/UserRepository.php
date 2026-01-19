@@ -15,18 +15,52 @@ class UserRepository
     public function isDepartmentHead(string $userId): bool
     {
         try {
-            $result = DB::connection('masterlist')->select("
-                SELECT COUNT(*) as count 
-                FROM employee_masterlist 
-                WHERE ACCSTATUS = 1 AND (APPROVER2 = ? OR APPROVER3 = ?)
-            ", [$userId, $userId]);
 
-            return ($result[0]->count ?? 0) > 0;
+            return Masterlist::where('ACCSTATUS', 1)
+                ->where(function ($query) use ($userId) {
+                    $query->where('APPROVER2', $userId)
+                        ->orWhere('APPROVER3', $userId);
+                })
+                ->exists();
         } catch (\Exception $e) {
             Log::error("Failed to check department head status for user {$userId}: " . $e->getMessage());
             return false;
         }
     }
+
+    public function isOperationDirector(string $userId): bool
+    {
+        try {
+            return Masterlist::where('EMPLOYID', $userId)
+                ->where('ACCSTATUS', 1)
+                ->where(function ($query) {
+                    $query->where('EMPPOSITION', 5)
+                        ->orWhere('JOBTITLE', 'Operation Director');
+                })
+                ->exists();
+        } catch (\Exception $e) {
+            Log::error('Error checking Operation Director: ' . $e->getMessage());
+            return false;
+        }
+    }
+    public function isMisEmp(string $userId): bool
+    {
+        try {
+            return Masterlist::where('EMPLOYID', $userId)
+                ->where('ACCSTATUS', 1)
+                ->where(function ($query) {
+                    $query->where('JOBTITLE', 'LIKE', '%MIS Support Technician%')
+                        ->orWhere('JOBTITLE', 'LIKE', '%Network Technician%')
+                        ->orWhere('JOBTITLE', 'LIKE', '%Network%');
+                })
+                ->exists();
+        } catch (\Exception $e) {
+            Log::error('Error checking MIS Employee: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+
     public function findUserById(string $empId): ?object
     {
         return Masterlist::where('EMPLOYID', $empId)
@@ -43,17 +77,6 @@ class UserRepository
             ->select([
                 'APPROVER2 as approver2',
                 'APPROVER3 as approver3',
-            ])
-            ->first();
-    }
-    public function getFacilitiesCoordinator(): ?object
-    {
-        return Masterlist::where('DEPARTMENT', 'Facilities')
-            ->where('JOB_TITLE', 'like', 'Facilities Engineer%')
-            ->where('ACCSTATUS', '1')
-            ->select([
-                'EMPLOYID as emp_id',
-                'EMPNAME as empname',
             ])
             ->first();
     }

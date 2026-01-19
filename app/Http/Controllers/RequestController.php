@@ -81,4 +81,66 @@ class RequestController extends Controller
 
         return response()->json($result, $result['success'] ? 200 : 500);
     }
+    public function getRequestsTable(Request $request)
+    {
+        $empData = session('emp_data');
+        // Decode base64 filters
+        $filters = $this->decodeFilters($request->input('f', ''));
+        // dd($filters);
+        // Validate and set defaults
+        $filters = [
+            'page' => (int) ($filters['page'] ?? 1),
+            'pageSize' => (int) ($filters['pageSize'] ?? 10),
+            'search' => trim($filters['search'] ?? ''),
+            'sortField' => $filters['sortField'] ?? 'created_at',
+            'sortOrder' => $filters['sortOrder'] ?? 'desc',
+            'status' => $filters['status'] ?? '',
+            'requestType' => $filters['requestType'] ?? '',
+        ];
+        // dd($empData);
+        $result = $this->requestService->getRequestsTable($filters, $empData);
+        // dd($result);
+        return Inertia::render('Requests/RequestTable', [
+            'requests' => $result['data'],
+            'pagination' => $result['pagination'],
+            'statusCounts' => $result['statusCounts'],
+            'filters' => $result['filters'],
+        ]);
+    }
+    public function show(Request $request, $id)
+    {
+        $empData = session('emp_data');
+
+        // Decode ID
+        $decodedId = base64_decode($id);
+        if (!is_numeric($decodedId)) {
+            abort(404);
+        }
+
+        // Decode actions
+        $actions = [];
+        if ($request->filled('actions')) {
+            $actions = json_decode(
+                base64_decode($request->input('actions')),
+                true
+            ) ?? [];
+        }
+
+        $request = $this->requestService->getRequestById((int) $decodedId, $empData);
+
+        if (!$request) {
+            abort(404);
+        }
+
+        return Inertia::render('Requests/RequestDetailView', [
+            'request' => $request,
+            'actions' => $actions,
+        ]);
+    }
+
+    protected function decodeFilters(string $encoded): array
+    {
+        $decoded = base64_decode($encoded);
+        return $decoded ? json_decode($decoded, true) : [];
+    }
 }

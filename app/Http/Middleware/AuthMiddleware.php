@@ -6,9 +6,16 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\UserRoleService;
 
 class AuthMiddleware
 {
+    protected UserRoleService $userRoleService;
+
+    public function __construct(UserRoleService $userRoleService)
+    {
+        $this->userRoleService = $userRoleService;
+    }
     public function handle(Request $request, Closure $next)
     {
         // 🔹 Get token from query, session, or cookie
@@ -58,7 +65,8 @@ class AuthMiddleware
             setcookie('sso_token', '', time() - 3600, '/');
             return $this->redirectToLogin($request);
         }
-
+        $userId = $currentUser->emp_id;
+        $userRoles = $this->userRoleService->getRole($userId);
         // 🔹 Set session
         session(['emp_data' => [
             'token'         => $currentUser->token,
@@ -70,6 +78,7 @@ class AuthMiddleware
             'emp_prodline'  => $currentUser->emp_prodline,
             'emp_station'   => $currentUser->emp_station,
             'emp_position'  => $currentUser->emp_position,
+            'emp_user_roles' => $userRoles,
             'generated_at'  => $currentUser->generated_at,
         ]]);
 

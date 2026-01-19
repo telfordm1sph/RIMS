@@ -2,11 +2,10 @@ import { usePage } from "@inertiajs/react";
 
 import SidebarLink from "@/Components/sidebar/SidebarLink";
 
-import { ClipboardList, FileText, SheetIcon } from "lucide-react";
+import { ClipboardList, FileText, SheetIcon, Table2Icon } from "lucide-react";
 
 export default function NavLinks({ isSidebarOpen }) {
     const { emp_data } = usePage().props;
-    console.log("Nav", emp_data);
 
     return (
         <nav
@@ -23,6 +22,12 @@ export default function NavLinks({ isSidebarOpen }) {
                 href={route("requestType.form")}
                 icon={<ClipboardList className="w-5 h-5" />}
                 label="Request Types"
+                isSidebarOpen={isSidebarOpen}
+            />
+            <SidebarLink
+                href={route("request.table")}
+                icon={<Table2Icon className="w-5 h-5" />}
+                label="Request Table"
                 isSidebarOpen={isSidebarOpen}
             />
         </nav>

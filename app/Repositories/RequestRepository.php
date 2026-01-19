@@ -4,6 +4,7 @@
 
 namespace App\Repositories;
 
+use App\Constants\Status;
 use App\Models\Masterlist;
 use App\Models\Request;
 use App\Models\RequestItem;
@@ -44,5 +45,42 @@ class RequestRepository
     public function createRequestItem(array $data): RequestItem
     {
         return RequestItem::create($data);
+    }
+    public function query()
+    {
+        return Request::query();
+    }
+    public function getStatusCountsFromQuery($query): array
+    {
+        $statusCounts = $query->clone()
+            ->groupBy('status')
+            ->selectRaw('status, COUNT(*) as count')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $result = [];
+        $total = array_sum($statusCounts);
+
+        $result['All'] = [
+            'count' => $total,
+            'color' => 'default',
+        ];
+
+        foreach (Status::LABELS as $value => $label) {
+            $result[$label] = [
+                'count' => $statusCounts[$value] ?? 0,
+                'color' => Status::COLORS[$value] ?? 'default',
+            ];
+        }
+
+        return $result;
+    }
+    public function getRequestItems($request_id)
+    {
+        return RequestItem::where('request_id', $request_id)->get();
+    }
+    public function findById(int $id): ?Request
+    {
+        return Request::with('items')->find($id);
     }
 }
