@@ -8,15 +8,18 @@ use App\Models\Location;
 use App\Models\Masterlist;
 use App\Models\User;
 use App\Repositories\RequestRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\DB;
 
 class RequestService
 {
     protected RequestRepository $repository;
+    protected UserRepository $userRepository;
 
-    public function __construct(RequestRepository $repository)
+    public function __construct(RequestRepository $repository, UserRepository $userRepository)
     {
         $this->repository = $repository;
+        $this->userRepository = $userRepository;
     }
 
     public function submitRequest(array $requestorData, array $cart): array
@@ -125,10 +128,12 @@ class RequestService
 
     public function getRequestsTable(array $filters, array $empData): array
     {
+        $currentEmpId = $empData['emp_id'] ?? null;
+
         // ----- Apply role filters -----
         $roleResult = $this->applyRoleFilters($this->repository->query(), $empData);
         $tableQuery = $roleResult['query'];
-        $actions    = $roleResult['actions'];
+        $role       = $roleResult['role']; // Get the active role
 
         $countResult = $this->applyRoleFilters($this->repository->query(), $empData);
         $countQuery  = $countResult['query'];
@@ -165,14 +170,21 @@ class RequestService
         $pageSize = $filters['pageSize'] ?? 10;
         $paginated = $tableQuery->paginate($pageSize, ['*'], 'page', $page);
 
-        // ----- Format table data -----
-        $data = collect($paginated->items())->map(function ($request) use ($actions) {
+        // ----- Format table data with per-request actions -----
+        // ----- Format table data with per-request actions -----
+        $data = collect($paginated->items())->map(function ($request) use ($role, $currentEmpId) {
+            // Convert request to array for consistency
+            $requestArray = is_array($request) ? $request : $request->toArray();
+
+            // Get actions specific to this request
+            $requestActions = $this->getActionsForRequest($requestArray, $role, $currentEmpId);
+
             return array_merge(
-                $request->toArray(),
+                $requestArray,
                 [
-                    'status_label' => Status::getLabel($request->status),
-                    'status_color' => Status::getColor($request->status),
-                    'actions'      => $actions, // <-- add allowed actions here
+                    'status_label' => Status::getLabel($requestArray['status']),
+                    'status_color' => Status::getColor($requestArray['status']),
+                    'actions'      => $requestActions, // Per-request actions
                 ]
             );
         });
@@ -271,56 +283,182 @@ class RequestService
     protected function applyRoleFilters($query, array $empData): array
     {
         $currentEmpId = $empData['emp_id'] ?? null;
-        $userRoles    = $empData['emp_user_roles'] ?? '';
-        $systemRoles  = $empData['emp_system_roles'] ?? [];
+        $userRoles    = $empData['emp_user_roles'] ?? [];
         $actions      = [];
+        $role         = null; // Add this to track which role is active
+
+        // Convert to array if it's a string (for backward compatibility)
+        if (is_string($userRoles)) {
+            $userRoles = [$userRoles];
+        }
+
+        // ---- Operation Director (check first - higher priority) ----
+        if (in_array('OPERATION_DIRECTOR', $userRoles) && $currentEmpId) {
+            $requestorIds = Masterlist::where('ACCSTATUS', 1)
+                ->where('EMPPOSITION', '>=', 2)
+                ->pluck('EMPLOYID');
+
+            if ($requestorIds->isEmpty()) {
+                return ['query' => $query->whereRaw('1 = 0'), 'actions' => [], 'role' => null];
+            }
+
+            $query = $query->whereIn('requestor_id', $requestorIds);
+            $role = 'OPERATION_DIRECTOR';
+
+            return ['query' => $query, 'actions' => [], 'role' => $role];
+        }
 
         // ---- Department Head ----
-        if ($userRoles === 'DEPARTMENT_HEAD' && $currentEmpId) {
+        if (in_array('DEPARTMENT_HEAD', $userRoles) && $currentEmpId) {
             $requestorIds = Masterlist::where(function ($q) use ($currentEmpId) {
                 $q->where('APPROVER2', $currentEmpId)
                     ->orWhere('APPROVER3', $currentEmpId);
             })->pluck('EMPLOYID');
 
             if ($requestorIds->isEmpty()) {
-                return ['query' => $query->whereRaw('1 = 0'), 'actions' => []];
+                return ['query' => $query->whereRaw('1 = 0'), 'actions' => [], 'role' => null];
             }
 
-            $actions = ['APPROVE', 'DISAPPROVE'];
-            return ['query' => $query->whereIn('requestor_id', $requestorIds), 'actions' => $actions];
-        }
+            // Show ALL requests - no status filter
+            $query = $query->whereIn('requestor_id', $requestorIds)
+                ->where('requestor_id', '!=', $currentEmpId);
 
-        // ---- Operation Director ----
-        if ($userRoles === 'OPERATION_DIRECTOR' && $currentEmpId) {
-            $requestorIds = Masterlist::where('ACCSTATUS', 1)
-                ->where('EMPOSITION', '>=', 2)
-                ->pluck('EMPLOYID');
+            $role = 'DEPARTMENT_HEAD';
 
-            if ($requestorIds->isEmpty()) {
-                return ['query' => $query->whereRaw('1 = 0'), 'actions' => []];
-            }
-
-            $actions = ['APPROVE', 'DISAPPROVE'];
-            return [
-                'query' => $query->where('status', '!=', 1)
-                    ->whereIn('requestor_id', $requestorIds),
-                'actions' => $actions
-            ];
+            return ['query' => $query, 'actions' => [], 'role' => $role];
         }
 
         // ---- MIS Support ----
-        if ($userRoles === 'MIS_SUPPORT') {
+        if (in_array('MIS_SUPPORT', $userRoles)) {
             $actions = ['ISSUE'];
-            return ['query' => $query->where('status', '<', 2), 'actions' => $actions];
+            $role = 'MIS_SUPPORT';
+            return ['query' => $query->where('status', '>=', 2), 'actions' => $actions, 'role' => $role];
         }
 
         // ---- Requestor (OWN records only) ----
         if ($currentEmpId) {
             $actions = ['VIEW'];
-            return ['query' => $query->where('requestor_id', $currentEmpId), 'actions' => $actions];
+            $role = 'REQUESTOR';
+            return ['query' => $query->where('requestor_id', $currentEmpId), 'actions' => $actions, 'role' => $role];
         }
 
         // ---- Default (others) ----
-        return ['query' => $query, 'actions' => $actions];
+        return ['query' => $query, 'actions' => $actions, 'role' => null];
+    }
+    /**
+     * Get the active role for the user based on their empData
+     */
+    public function getRoleForUser(array $empData): array
+    {
+        $roleResult = $this->applyRoleFilters($this->repository->query(), $empData);
+        return ['role' => $roleResult['role']];
+    }
+
+    /**
+     * Get actions for a specific request based on role and request status
+     */
+    public function getActionsForSpecificRequest($request, $role, $currentEmpId): array
+    {
+        return $this->getActionsForRequest($request, $role, $currentEmpId);
+    }
+
+    /**
+     * Helper method to determine actions for a request based on role and status
+     */
+    private function getActionsForRequest($request, $role, $currentEmpId): array
+    {
+        // Convert to array if it's an object
+        $requestData = is_array($request) ? $request : $request->toArray();
+
+        switch ($role) {
+            case 'OPERATION_DIRECTOR':
+                // Can approve/disapprove status 2 requests
+                return $requestData['status'] == 2
+                    ? ['APPROVE', 'DISAPPROVE', 'VIEW']
+                    : ['VIEW'];
+
+            case 'DEPARTMENT_HEAD':
+                // Can approve/disapprove status 1 requests (not their own)
+                if ($requestData['requestor_id'] != $currentEmpId && $requestData['status'] == 1) {
+                    return ['APPROVE', 'DISAPPROVE', 'VIEW'];
+                }
+                return ['VIEW'];
+
+            case 'MIS_SUPPORT':
+                return ['ISSUE', 'VIEW'];
+
+            case 'REQUESTOR':
+            default:
+                return ['VIEW'];
+        }
+    }
+    public function requestAction(
+        string $requestId,
+        array $empData,
+        string $actionType = 'APPROVE',
+        string $remarks = '',
+    ): bool {
+        $actionType = strtoupper($actionType);
+
+        if (!in_array($actionType, ['APPROVE', 'DISAPPROVE', 'ACKNOWLEDGE'])) {
+            throw new \InvalidArgumentException('Invalid action type');
+        }
+
+        if (empty($remarks)) {
+            throw new \InvalidArgumentException('Remarks are required for this action.');
+        }
+
+        return DB::transaction(function () use ($requestId, $empData, $actionType, $remarks) {
+
+            $request = $this->repository->getRequestById($requestId);
+            if (!$request) return false;
+
+            // Get user roles directly from empData array
+            $userRoles = $empData['emp_user_roles'] ?? [];
+
+            // Convert to array if it's a string
+            if (is_string($userRoles)) {
+                $userRoles = [$userRoles];
+            }
+
+            // Determine the actual action based on role and action type
+            $effectiveAction = $actionType;
+
+            if ($actionType === 'APPROVE') {
+                // Check Operation Director first (higher priority)
+                if (in_array('OPERATION_DIRECTOR', $userRoles)) {
+                    $effectiveAction = 'APPROVE';
+                } elseif (in_array('DEPARTMENT_HEAD', $userRoles)) {
+                    // Check if requestor has Operation Director as their only approver
+                    if ($this->userRepository->hasOperationDirectorAsOnlyApprover($request->requestor_id)) {
+                        $effectiveAction = 'APPROVE';
+                    } else {
+                        $effectiveAction = 'TRIAGE';
+                    }
+                }
+            }
+
+            // Map action to status
+            $statusMap = [
+                'TRIAGE'        => 2,
+                'APPROVE'       => 3,
+                'DISAPPROVE'    => 4,
+                'ACKNOWLEDGE'   => 5,
+            ];
+
+            $newStatus = $statusMap[$effectiveAction] ?? null;
+
+            if (is_null($newStatus)) {
+                throw new \InvalidArgumentException("No status mapping found for action $effectiveAction");
+            }
+
+            $updateData = [
+                'status' => $newStatus,
+            ];
+
+            $this->repository->updateRequest($request, $updateData);
+
+            return true;
+        });
     }
 }

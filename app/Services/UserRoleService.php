@@ -28,18 +28,25 @@ class UserRoleService
     {
         return $this->userRepository->isMisEmp($userId);
     }
-    public function getRole(string $userId): ?string
+    public function getRole(string $userId): array
     {
-        if ($this->userRepository->isDepartmentHead($userId)) {
-            return 'DEPARTMENT_HEAD';
-        } elseif ($this->userRepository->isOperationDirector($userId)) {
-            return 'OPERATION_DIRECTOR';
-        } elseif ($this->userRepository->isMisEmp($userId)) {
-            return 'MIS_SUPPORT';
+        $roles = [];
+
+        if ($this->userRepository->isOperationDirector($userId)) {
+            $roles[] = 'OPERATION_DIRECTOR';
         }
 
-        return null;
+        if ($this->userRepository->isDepartmentHead($userId)) {
+            $roles[] = 'DEPARTMENT_HEAD';
+        }
+
+        if ($this->userRepository->isMisEmp($userId)) {
+            $roles[] = 'MIS_SUPPORT';
+        }
+
+        return $roles;
     }
+
     public function getEmployees(): array
     {
         return $this->userRepository->getEmployees();

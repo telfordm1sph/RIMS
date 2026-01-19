@@ -83,4 +83,12 @@ class RequestRepository
     {
         return Request::with('items')->find($id);
     }
+    public function getRequestById(string $requestId)
+    {
+        return Request::where('request_number', $requestId)->first();
+    }
+    public function updateRequest(Request $reqeust, array $data): bool
+    {
+        return $reqeust->update($data);
+    }
 }

@@ -46,14 +46,15 @@ class RequestTypeRepository
 
     public function getLocationList()
     {
-
         return DB::connection('qa')
             ->table('location_list')
             ->select('id', 'location_name')
             ->distinct()
+            ->where('location_name', '<>', 'Others')
             ->orderBy('location_name')
             ->get();
     }
+
     /**
      * Create a new request type
      */

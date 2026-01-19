@@ -16,6 +16,7 @@ class AuthMiddleware
     {
         $this->userRoleService = $userRoleService;
     }
+
     public function handle(Request $request, Closure $next)
     {
         // 🔹 Get token from query, session, or cookie
@@ -65,21 +66,29 @@ class AuthMiddleware
             setcookie('sso_token', '', time() - 3600, '/');
             return $this->redirectToLogin($request);
         }
+
+        // 🔹 Get user roles (now returns array)
         $userId = $currentUser->emp_id;
         $userRoles = $this->userRoleService->getRole($userId);
-        // 🔹 Set session
+
+        Log::info('User roles fetched', [
+            'emp_id' => $userId,
+            'roles' => $userRoles,
+        ]);
+
+        // 🔹 Set session with roles array
         session(['emp_data' => [
-            'token'         => $currentUser->token,
-            'emp_id'        => $currentUser->emp_id,
-            'emp_name'      => $currentUser->emp_name,
-            'emp_firstname' => $currentUser->emp_firstname,
-            'emp_jobtitle'  => $currentUser->emp_jobtitle,
-            'emp_dept'      => $currentUser->emp_dept,
-            'emp_prodline'  => $currentUser->emp_prodline,
-            'emp_station'   => $currentUser->emp_station,
-            'emp_position'  => $currentUser->emp_position,
+            'token'          => $currentUser->token,
+            'emp_id'         => $currentUser->emp_id,
+            'emp_name'       => $currentUser->emp_name,
+            'emp_firstname'  => $currentUser->emp_firstname,
+            'emp_jobtitle'   => $currentUser->emp_jobtitle,
+            'emp_dept'       => $currentUser->emp_dept,
+            'emp_prodline'   => $currentUser->emp_prodline,
+            'emp_station'    => $currentUser->emp_station,
+            'emp_position'   => $currentUser->emp_position,
             'emp_user_roles' => $userRoles,
-            'generated_at'  => $currentUser->generated_at,
+            'generated_at'   => $currentUser->generated_at,
         ]]);
 
         session()->save(); // force immediate save

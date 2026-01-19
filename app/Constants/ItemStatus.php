@@ -20,8 +20,8 @@ class ItemStatus
 
     // Status colors for UI
     const COLORS = [
-        self::PENDING      => 'gold',
-        self::ISSUED     => 'lime',
+        self::PENDING  => 'gold',
+        self::ISSUED   => 'lime',
         self::CANCELED => 'green',
     ];
 

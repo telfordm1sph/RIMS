@@ -35,7 +35,7 @@ class UserRepository
                 ->where('ACCSTATUS', 1)
                 ->where(function ($query) {
                     $query->where('EMPPOSITION', 5)
-                        ->orWhere('JOBTITLE', 'Operation Director');
+                        ->orWhere('JOB_TITLE', 'LIKE', '%Operation%Director%');
                 })
                 ->exists();
         } catch (\Exception $e) {
@@ -49,9 +49,9 @@ class UserRepository
             return Masterlist::where('EMPLOYID', $userId)
                 ->where('ACCSTATUS', 1)
                 ->where(function ($query) {
-                    $query->where('JOBTITLE', 'LIKE', '%MIS Support Technician%')
-                        ->orWhere('JOBTITLE', 'LIKE', '%Network Technician%')
-                        ->orWhere('JOBTITLE', 'LIKE', '%Network%');
+                    $query->where('JOB_TITLE', 'LIKE', '%MIS Support Technician%')
+                        ->orWhere('JOB_TITLE', 'LIKE', '%Network Technician%')
+                        ->orWhere('JOB_TITLE', 'LIKE', '%Network%');
                 })
                 ->exists();
         } catch (\Exception $e) {
@@ -104,5 +104,35 @@ class UserRepository
                 'EMPNAME as empname',
             ])
             ->get();
+    }
+    public function hasOperationDirectorAsOnlyApprover(string $requestorId): bool
+    {
+        try {
+            $requestor = Masterlist::where('EMPLOYID', $requestorId)
+                ->where('ACCSTATUS', 1)
+                ->select(['APPROVER1', 'APPROVER2'])
+                ->first();
+
+            if (!$requestor) {
+                return false;
+            }
+
+            // Check if APPROVER1 and APPROVER2 are the same and not null
+            if (empty($requestor->APPROVER1) || empty($requestor->APPROVER2)) {
+                return false;
+            }
+
+            if ($requestor->APPROVER1 !== $requestor->APPROVER2) {
+                return false;
+            }
+
+            // Check if this approver is an Operation Director
+            $approverId = $requestor->APPROVER1;
+
+            return $this->isOperationDirector($approverId);
+        } catch (\Exception $e) {
+            Log::error("Failed to check Operation Director as only approver for requestor {$requestorId}: " . $e->getMessage());
+            return false;
+        }
     }
 }

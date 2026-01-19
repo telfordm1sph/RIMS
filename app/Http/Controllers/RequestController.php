@@ -110,6 +110,7 @@ class RequestController extends Controller
     public function show(Request $request, $id)
     {
         $empData = session('emp_data');
+        $currentEmpId = $empData['emp_id'] ?? null;
 
         // Decode ID
         $decodedId = base64_decode($id);
@@ -117,27 +118,65 @@ class RequestController extends Controller
             abort(404);
         }
 
-        // Decode actions
-        $actions = [];
-        if ($request->filled('actions')) {
-            $actions = json_decode(
-                base64_decode($request->input('actions')),
-                true
-            ) ?? [];
-        }
+        $requestData = $this->requestService->getRequestById((int) $decodedId, $empData);
 
-        $request = $this->requestService->getRequestById((int) $decodedId, $empData);
-
-        if (!$request) {
+        if (!$requestData) {
             abort(404);
         }
 
+        // Get role and determine actions for this specific request
+        $roleResult = $this->requestService->getRoleForUser($empData);
+        $actions = $this->requestService->getActionsForSpecificRequest(
+            $requestData,
+            $roleResult['role'],
+            $currentEmpId
+        );
+
         return Inertia::render('Requests/RequestDetailView', [
-            'request' => $request,
+            'request' => $requestData,
             'actions' => $actions,
         ]);
     }
+    public function RequestAction(Request $request)
+    {
+        // dd($request->all());
+        $empData = session('emp_data');
+        $requestId = $request->input('request_number');
+        $remarks = $request->input('remarks');
+        $actionType = strtoupper($request->input('action'));
 
+
+        $request->merge([
+            'action' => $actionType
+        ]);
+
+        $request->validate([
+            'request_number' => 'required|string',
+            'action' => 'required|string|in:APPROVE,DISAPPROVE,ACKNOWLEDGE',
+            'remarks' => 'nullable|string',
+
+        ]);
+
+        try {
+            $success = $this->requestService->requestAction($requestId, $empData, $actionType, $remarks);
+            if ($success) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Request {$actionType} successfully."
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => "Request not found."
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update reqeust: ' . $e->getMessage()
+            ], 500);
+        }
+    }
     protected function decodeFilters(string $encoded): array
     {
         $decoded = base64_decode($encoded);
