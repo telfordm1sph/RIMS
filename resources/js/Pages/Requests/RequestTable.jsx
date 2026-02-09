@@ -7,6 +7,8 @@ import StatCard from "@/Components/StatCard";
 import TableToolbar from "@/Components/TableToolbar";
 import useRequestTable from "@/Hooks/useRequestTable";
 
+import axios from "axios";
+
 const RequestTable = () => {
     const {
         requests,
@@ -15,21 +17,14 @@ const RequestTable = () => {
         filters: initialFilters,
         emp_data,
     } = usePage().props;
-    console.log(usePage().props);
-    console.log(requests.actions);
 
     const handleViewRequest = (record) => {
-        console.log("RECORD", record);
-
         const appName = window.location.pathname.split("/")[1];
-
         const encodedId = btoa(record.id);
         const encodedActions = btoa(JSON.stringify(record.actions));
 
         router.visit(`/${appName}/requests/show/${encodedId}`, {
-            data: {
-                actions: encodedActions,
-            },
+            data: { actions: encodedActions },
             preserveState: true,
         });
     };
@@ -39,9 +34,9 @@ const RequestTable = () => {
         searchValue,
         statusFilter,
         handleStatusChange,
-
         handleSearch,
     } = useRequestTable({ initialFilters, pagination });
+
     const columns = [
         {
             title: "ID",
@@ -75,7 +70,7 @@ const RequestTable = () => {
             title: "Actions",
             key: "actions",
             align: "center",
-            width: 100,
+            width: 150,
             render: (_, record) => (
                 <Space>
                     <Button
@@ -108,6 +103,7 @@ const RequestTable = () => {
     return (
         <AuthenticatedLayout>
             <StatCard stats={statusCounts} activeStatus={statusFilter} />
+
             <Card title="Requests" style={{ margin: "24px" }}>
                 <div>
                     <TableToolbar

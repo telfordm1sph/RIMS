@@ -12,7 +12,7 @@ import {
     Select,
     Typography,
 } from "antd";
-import { SendOutlined } from "@ant-design/icons";
+import { EditOutlined, SendOutlined } from "@ant-design/icons";
 import axios from "axios";
 import HardwareModal from "./HardwareModal";
 
@@ -27,17 +27,16 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
     const [hostRows, setHostRows] = useState([]);
     const [modalOpen, setModalOpen] = useState(false);
     const [modalSearch, setModalSearch] = useState(null);
-    const [modalRowIndex, setModalRowIndex] = useState(null); // track which row is editing
-
+    const [modalRowIndex, setModalRowIndex] = useState(null);
     const inputStyle = {
         marginBottom: 12,
-        border: "1px solid #f0f0f0",
+        border: "1px solid #424242",
         padding: 8,
         borderRadius: 6,
+        height: 36,
     };
     const selectStyle = { width: "100%", height: 36, borderRadius: 6 };
 
-    // Fetch locations & hostnames
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -48,6 +47,8 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                     const hostRes = await axios.get(route("hostnames.list"), {
                         params: { type_of_request: item.type_of_request },
                     });
+                    console.log("Host", hostRes);
+
                     setHostnames(
                         hostRes.data.map((host) => ({
                             hostname: host.hostname,
@@ -62,16 +63,16 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
         fetchData();
     }, [item?.type_of_request]);
 
-    // Initialize rows
     useEffect(() => {
         if (item?.quantity) {
-            const rows = Array(item.quantity).fill({
+            const rows = Array.from({ length: item.quantity }, () => ({
+                issued_to: item?.issued_to || null,
                 hostname: "",
                 hostname_other: "",
                 location: "",
                 location_other: "",
                 remarks: "",
-            });
+            }));
             setHostRows(rows);
             form.setFieldsValue({ hostnames: rows });
         }
@@ -97,6 +98,7 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                 item_id: item?.id,
                 action: "ISSUE",
                 hostnames: hostRows.map((row) => ({
+                    issued_to: row.issued_to,
                     hostname:
                         row.hostname === "Other"
                             ? row.hostname_other
@@ -108,6 +110,8 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                     remarks: row.remarks,
                 })),
             };
+            console.log("Form", payload);
+
             const res = await axios.post(route("request.action"), payload);
             if (res.data.success) {
                 message.success(res.data.message);
@@ -123,7 +127,6 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
         }
     };
 
-    // Open modal for a row
     const openModalForRow = (index) => {
         const row = hostRows[index];
         setModalSearch(row.hostname || row.hostname_other);
@@ -132,18 +135,34 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
     };
 
     const handleModalSave = (updatedData) => {
+        console.log("Received from modal:", updatedData);
+
         if (modalRowIndex !== null) {
             const updatedRows = [...hostRows];
+
+            // Update the row with the new data from the modal
             updatedRows[modalRowIndex] = {
                 ...updatedRows[modalRowIndex],
-                hostname: updatedData.hostname,
-                hostname_other: updatedData.hostname,
-                location: updatedData.location,
-                remarks: updatedData.remarks,
+                hostname: updatedData.hostname || "",
+                hostname_other: "", // Clear this since we now have a proper hostname
+                location: updatedData.location || "",
+                location_other: "", // Clear this
+                remarks:
+                    updatedData.remarks ||
+                    updatedRows[modalRowIndex].remarks ||
+                    "",
             };
+
+            console.log("Updated row:", updatedRows[modalRowIndex]);
+
             setHostRows(updatedRows);
             form.setFieldsValue({ hostnames: updatedRows });
         }
+
+        // Close the modal and reset state
+        setModalOpen(false);
+        setModalRowIndex(null);
+        setModalSearch(null);
     };
 
     const handleClose = () => {
@@ -191,88 +210,133 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                             style={{
                                 marginBottom: 16,
                                 padding: 12,
-                                border: "1px solid #f0f0f0",
+                                border: "1px solid #424242",
                                 borderRadius: 6,
                             }}
                         >
                             <h4>Item {i + 1}</h4>
                             <Row gutter={16}>
                                 <Col span={12}>
-                                    <Text>Hostname</Text>
-                                    <Space
-                                        style={{ width: "100%" }}
-                                        align="start"
-                                    >
-                                        {row.hostname === "Other" ? (
-                                            <Input
-                                                placeholder="Enter hostname"
-                                                value={row.hostname_other}
-                                                style={{
-                                                    ...inputStyle,
-                                                    flex: 1,
-                                                }}
-                                                onChange={(e) =>
-                                                    updateRow(
-                                                        i,
-                                                        "hostname_other",
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            />
-                                        ) : (
-                                            <Select
-                                                placeholder="Select Hostname"
-                                                value={
-                                                    row.hostname ||
-                                                    row.serial ||
-                                                    undefined
-                                                }
-                                                style={{
-                                                    ...selectStyle,
-                                                    flex: 1,
-                                                }}
-                                                showSearch
-                                                onChange={(val) =>
-                                                    updateRow(
-                                                        i,
-                                                        "hostname",
-                                                        val,
-                                                    )
-                                                }
-                                                filterOption={(input, option) =>
-                                                    (option?.label ?? "")
-                                                        .toLowerCase()
-                                                        .includes(
-                                                            input.toLowerCase(),
-                                                        )
-                                                }
-                                                options={[
-                                                    ...hostnames.map(
-                                                        (host) => ({
-                                                            label: `${host.hostname || host.serial} - ${host.serial}`,
-                                                            value:
-                                                                host.hostname ||
-                                                                host.serial,
-                                                        }),
-                                                    ),
-                                                    {
-                                                        label: "Other",
-                                                        value: "Other",
-                                                    },
-                                                ]}
-                                            />
-                                        )}
-                                        <Button
-                                            type="default"
-                                            onClick={() => openModalForRow(i)}
-                                        >
-                                            Update
-                                        </Button>
-                                    </Space>
+                                    <Form.Item label="Issued To">
+                                        <Input
+                                            value={item?.issued_to_name || "-"}
+                                            readOnly
+                                            style={{
+                                                border: "1px solid #424242",
+                                                cursor: "not-allowed",
+                                                borderRadius: 6,
+                                                height: 36,
+                                            }}
+                                        />
+                                    </Form.Item>
                                 </Col>
 
                                 <Col span={12}>
-                                    <Text>Location</Text>
+                                    <Form.Item label="Request Number">
+                                        <Input
+                                            value={
+                                                request?.request_number || "-"
+                                            }
+                                            readOnly
+                                            style={{
+                                                border: "1px solid #424242",
+                                                cursor: "not-allowed",
+                                                borderRadius: 6,
+                                                height: 36,
+                                            }}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>{" "}
+                            <Row gutter={16}>
+                                <Col span={12}>
+                                    {/* Label row */}
+                                    <Row
+                                        justify="space-between"
+                                        align="middle"
+                                        style={{
+                                            minHeight: 32,
+                                            marginBottom: 8,
+                                        }}
+                                    >
+                                        <Text>Hostname</Text>
+
+                                        {row.hostname &&
+                                            row.hostname !== "Other" && (
+                                                <Button
+                                                    size="small"
+                                                    type="text"
+                                                    color="primary"
+                                                    variant="outlined"
+                                                    onClick={() =>
+                                                        openModalForRow(i)
+                                                    }
+                                                >
+                                                    <EditOutlined /> Update
+                                                </Button>
+                                            )}
+                                    </Row>
+
+                                    {/* Field */}
+                                    {row.hostname === "Other" ? (
+                                        <Input
+                                            placeholder="Enter hostname"
+                                            value={row.hostname_other}
+                                            style={inputStyle}
+                                            onChange={(e) =>
+                                                updateRow(
+                                                    i,
+                                                    "hostname_other",
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                    ) : (
+                                        <Select
+                                            placeholder="Select Hostname"
+                                            value={row.hostname || undefined}
+                                            style={selectStyle}
+                                            showSearch
+                                            onChange={(val) =>
+                                                updateRow(i, "hostname", val)
+                                            }
+                                            filterOption={(input, option) =>
+                                                (option?.label ?? "")
+                                                    .toLowerCase()
+                                                    .includes(
+                                                        input.toLowerCase(),
+                                                    )
+                                            }
+                                            options={[
+                                                ...hostnames.map((host) => ({
+                                                    label: `${host.hostname || host.serial} - ${host.serial}`,
+                                                    value:
+                                                        host.hostname ||
+                                                        host.serial,
+                                                })),
+                                                {
+                                                    label: "Other",
+                                                    value: "Other",
+                                                },
+                                            ]}
+                                        />
+                                    )}
+                                </Col>
+
+                                <Col span={12}>
+                                    {/* Label row */}
+                                    <Row
+                                        justify="space-between"
+                                        align="middle"
+                                        style={{
+                                            minHeight: 32,
+                                            marginBottom: 8,
+                                        }}
+                                    >
+                                        <Text>Location</Text>
+                                    </Row>
+
+                                    {/* Field */}
                                     {row.location === "Other" ? (
                                         <Input
                                             placeholder="Enter location"
@@ -317,11 +381,13 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                                 </Col>
 
                                 <Col span={24}>
-                                    <Form.Item label="Remarks">
+                                    <Form.Item
+                                        label="Remarks"
+                                        style={{ marginTop: 8 }}
+                                    >
                                         <TextArea
                                             rows={3}
                                             placeholder="Enter remarks (optional)"
-                                            style={inputStyle}
                                             value={row.remarks}
                                             onChange={(e) =>
                                                 updateRow(
@@ -342,7 +408,11 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
             <HardwareModal
                 open={modalOpen}
                 searchValue={modalSearch}
-                onClose={() => setModalOpen(false)}
+                onClose={() => {
+                    setModalOpen(false);
+                    setModalRowIndex(null);
+                    setModalSearch(null);
+                }}
                 onSave={handleModalSave}
             />
         </>
