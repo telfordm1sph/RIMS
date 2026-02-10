@@ -21,8 +21,8 @@ class InventoryController extends Controller
     public function getHostNames(Request $request)
     {
         $type_of_request = $request->input('type_of_request');
-        $locations = $this->inventoryService->getHostNames($type_of_request);
-        return response()->json($locations);
+        $hostnames = $this->inventoryService->getHostNames($type_of_request);
+        return response()->json($hostnames);
     }
 
     /**
@@ -137,6 +137,56 @@ class InventoryController extends Controller
     {
         $data = $request->all();
         $response = $this->inventoryService->updateHardware($hardwareId, $data);
+        return response()->json($response);
+    }
+
+    /**
+     * Create whole unit issuance
+     */
+    public function createIssuance(Request $request)
+    {
+        $data = $request->all();
+        $response = $this->inventoryService->createIssuance($data);
+        return response()->json($response);
+    }
+
+    /**
+     * Create individual item issuance
+     */
+    public function createItemIssuance(Request $request)
+    {
+        $data = $request->all();
+        $response = $this->inventoryService->createItemIssuance($data);
+        return response()->json($response);
+    }
+
+    /**
+     * Get issuances - read filters from query parameter 'f'
+     */
+    public function getIssuances(Request $request)
+    {
+        $filters = $request->query('f');
+        $decodedFilters = $filters ? json_decode(base64_decode($filters), true) : [];
+        $issuances = $this->inventoryService->getIssuances($decodedFilters ?? []);
+        return response()->json($issuances);
+    }
+
+    /**
+     * Get issuance details
+     */
+    public function getIssuanceDetails($id)
+    {
+        $details = $this->inventoryService->getIssuanceDetails($id);
+        return response()->json($details);
+    }
+
+    /**
+     * Acknowledge issuance
+     */
+    public function acknowledgeIssuance($id, Request $request)
+    {
+        $data = $request->all();
+        $response = $this->inventoryService->acknowledgeIssuance($id, $data);
         return response()->json($response);
     }
 }

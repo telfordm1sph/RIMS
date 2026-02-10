@@ -152,7 +152,7 @@ class RequestController extends Controller
 
         $request->validate([
             'request_number' => 'required|string',
-            'action' => 'required|string|in:APPROVE,DISAPPROVE,ACKNOWLEDGE',
+            'action' => 'required|string|in:APPROVE,DISAPPROVE,ISSUED',
             'remarks' => 'nullable|string',
 
         ]);
@@ -174,6 +174,34 @@ class RequestController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update reqeust: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Update request item status
+     */
+    public function updateItemStatus(Request $request)
+    {
+        $request->validate([
+            'item_id' => 'required|integer',
+            'status' => 'required|integer|in:1,2,3', // 1=PENDING, 2=ISSUED, 3=CANCELED
+        ]);
+
+        try {
+            $result = $this->requestService->updateRequestItemStatus(
+                $request->input('item_id'),
+                $request->input('status')
+            );
+
+            if ($result['success']) {
+                return response()->json($result);
+            }
+
+            return response()->json($result, 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update item status: ' . $e->getMessage()
             ], 500);
         }
     }

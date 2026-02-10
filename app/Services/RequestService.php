@@ -461,4 +461,39 @@ class RequestService
             return true;
         });
     }
+    /**
+     * Update request item status
+     */
+    public function updateRequestItemStatus(int $itemId, int $status): array
+    {
+        try {
+            $item = $this->repository->getRequestItemById($itemId);
+
+            if (!$item) {
+                return [
+                    'success' => false,
+                    'message' => 'Request item not found',
+                ];
+            }
+
+            $updated = $this->repository->updateRequestItemStatus($itemId, $status);
+
+            if ($updated) {
+                return [
+                    'success' => true,
+                    'message' => 'Request item status updated successfully',
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Failed to update request item status',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error updating request item status: ' . $e->getMessage(),
+            ];
+        }
+    }
 }

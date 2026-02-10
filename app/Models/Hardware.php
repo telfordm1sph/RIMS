@@ -20,7 +20,7 @@ class Hardware extends Model
         'brand',
         'processor',
         'motherboard',
-        'serial',
+        'serial_number',
         'ip_address',
         'wifi_mac',
         'lan_mac',

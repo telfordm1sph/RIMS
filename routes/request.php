@@ -23,4 +23,7 @@ Route::prefix($app_name)
         Route::get('/requests/show/{id}', [RequestController::class, 'show'])->name('request.show');
 
         Route::post('/request/action', [RequestController::class, 'RequestAction'])->name('request.action');
+
+        Route::post('/request/update-status', [RequestController::class, 'updateItemStatus'])
+            ->name('request.update-status');
     });

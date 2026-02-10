@@ -15,6 +15,7 @@ import {
 import { EditOutlined, SendOutlined } from "@ant-design/icons";
 import axios from "axios";
 import HardwareModal from "./HardwareModal";
+import { usePage } from "@inertiajs/react";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -28,6 +29,7 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
     const [modalOpen, setModalOpen] = useState(false);
     const [modalSearch, setModalSearch] = useState(null);
     const [modalRowIndex, setModalRowIndex] = useState(null);
+    const { emp_data } = usePage().props;
     const inputStyle = {
         marginBottom: 12,
         border: "1px solid #424242",
@@ -52,7 +54,7 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                     setHostnames(
                         hostRes.data.map((host) => ({
                             hostname: host.hostname,
-                            serial: host.serial,
+                            serial_number: host.serial_number,
                         })),
                     );
                 }
@@ -91,12 +93,33 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
 
     const handleSubmit = async () => {
         try {
-            await form.validateFields();
+            // Validate all required fields
+            const hasEmptyHostname = hostRows.some(
+                (row) =>
+                    !row.hostname ||
+                    (row.hostname === "Other" && !row.hostname_other),
+            );
+            const hasEmptyLocation = hostRows.some(
+                (row) =>
+                    !row.location ||
+                    (row.location === "Other" && !row.location_other),
+            );
+
+            if (hasEmptyHostname) {
+                message.error("Please fill in all hostnames");
+                return;
+            }
+
+            if (hasEmptyLocation) {
+                message.error("Please fill in all locations");
+                return;
+            }
+
             setLoading(true);
+
             const payload = {
                 request_number: request?.request_number,
-                item_id: item?.id,
-                action: "ISSUE",
+                employee_id: emp_data?.emp_id,
                 hostnames: hostRows.map((row) => ({
                     issued_to: row.issued_to,
                     hostname:
@@ -107,21 +130,41 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                         row.location === "Other"
                             ? row.location_other
                             : row.location,
-                    remarks: row.remarks,
+                    remarks: row.remarks || null,
                 })),
             };
-            console.log("Form", payload);
 
-            const res = await axios.post(route("request.action"), payload);
+            console.log("Issuance payload:", payload);
+
+            // Use PUT instead of POST if you want it to behave like your hardware update
+            // Make sure your backend route also allows PUT for /issuance/create
+            const res = await axios.post(route("issuance.create"), payload);
+
             if (res.data.success) {
-                message.success(res.data.message);
+                // Update local request item status to ISSUED (2)
+                await axios.post(route("request.update-status"), {
+                    item_id: item.id,
+                    status: 2, // ISSUED
+                });
+
+                message.success(
+                    res.data.message || "Items issued successfully",
+                );
+
+                // Reset form and host rows
                 form.resetFields();
                 setHostRows([]);
                 onClose();
                 if (onSuccess) onSuccess();
-            } else message.error(res.data.message);
+            } else {
+                message.error(res.data.message || "Failed to issue items");
+            }
         } catch (err) {
-            message.error("Please fill in all required fields.");
+            console.error("Issuance error:", err);
+            message.error(
+                err.response?.data?.message ||
+                    "An error occurred while issuing items",
+            );
         } finally {
             setLoading(false);
         }
@@ -309,10 +352,10 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                                             }
                                             options={[
                                                 ...hostnames.map((host) => ({
-                                                    label: `${host.hostname || host.serial} - ${host.serial}`,
+                                                    label: `${host.hostname || host.serial_number} - ${host.serial_number}`,
                                                     value:
                                                         host.hostname ||
-                                                        host.serial,
+                                                        host.serial_number,
                                                 })),
                                                 {
                                                     label: "Other",

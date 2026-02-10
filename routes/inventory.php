@@ -8,7 +8,6 @@ $app_name = $app_name ?? env('APP_NAME', 'app');
 Route::prefix($app_name)->group(function () {
 
     // Local repository routes
-
     Route::get('/hostnames', [InventoryController::class, 'getHostNames'])->name('hostnames.list');
     Route::get('/hardware/details', [InventoryController::class, 'getHardwareDetails'])->name('hardware.details');
 
@@ -20,6 +19,13 @@ Route::prefix($app_name)->group(function () {
     Route::get('/software-options', [InventoryController::class, 'softwareOptions'])->name('hardware.software.options');
     Route::get('/software-licenses', [InventoryController::class, 'softwareLicenses'])->name('hardware.software.licenses');
     Route::get('/software-inventory-options', [InventoryController::class, 'softwareInventoryOptions'])->name('software.inventory.options');
+
+    // Issuance routes
+    Route::post('/issuance/create', [InventoryController::class, 'createIssuance'])->name('issuance.create');
+    Route::post('/issuance/items/create', [InventoryController::class, 'createItemIssuance'])->name('issuance.items.create');
+    Route::get('/issuance', [InventoryController::class, 'getIssuances'])->name('issuance.list');
+    Route::get('/issuance/{id}', [InventoryController::class, 'getIssuanceDetails'])->name('issuance.details');
+    Route::post('/issuance/{id}/acknowledge', [InventoryController::class, 'acknowledgeIssuance'])->name('issuance.acknowledge');
 
     // Hardware parts and software (by ID) - KEEP THESE LAST
     Route::get('/{hardwareId}/full-details', [InventoryController::class, 'getFullHardwareDetails'])->name('hardware.full.details');

@@ -1,7 +1,5 @@
 <?php
 
-
-
 namespace App\Repositories;
 
 use App\Constants\Status;
@@ -37,6 +35,7 @@ class RequestRepository
             return 'REQ-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         });
     }
+
     public function createRequest(array $data): Request
     {
         return Request::create($data);
@@ -46,10 +45,12 @@ class RequestRepository
     {
         return RequestItem::create($data);
     }
+
     public function query()
     {
         return Request::query();
     }
+
     public function getStatusCountsFromQuery($query): array
     {
         $statusCounts = $query->clone()
@@ -75,20 +76,46 @@ class RequestRepository
 
         return $result;
     }
+
     public function getRequestItems($request_id)
     {
         return RequestItem::where('request_id', $request_id)->get();
     }
+
     public function findById(int $id): ?Request
     {
         return Request::with('items')->find($id);
     }
+
     public function getRequestById(string $requestId)
     {
         return Request::where('request_number', $requestId)->first();
     }
-    public function updateRequest(Request $reqeust, array $data): bool
+
+    public function updateRequest(Request $request, array $data): bool
     {
-        return $reqeust->update($data);
+        return $request->update($data);
+    }
+
+    /**
+     * Update request item status
+     */
+    public function updateRequestItemStatus(int $itemId, int $status): bool
+    {
+        $item = RequestItem::find($itemId);
+
+        if (!$item) {
+            return false;
+        }
+
+        return $item->update(['item_status' => $status]);
+    }
+
+    /**
+     * Get request item by ID
+     */
+    public function getRequestItemById(int $itemId): ?RequestItem
+    {
+        return RequestItem::find($itemId);
     }
 }
