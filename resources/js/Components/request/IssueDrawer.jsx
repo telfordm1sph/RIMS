@@ -70,7 +70,6 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
             const rows = Array.from({ length: item.quantity }, () => ({
                 issued_to: item?.issued_to || null,
                 hostname: "",
-                hostname_other: "",
                 location: "",
                 location_other: "",
                 remarks: "",
@@ -83,8 +82,6 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
     const updateRow = (index, field, value) => {
         const updated = [...hostRows];
         updated[index][field] = value;
-        if (field === "hostname" && value !== "Other")
-            updated[index].hostname_other = "";
         if (field === "location" && value !== "Other")
             updated[index].location_other = "";
         setHostRows(updated);
@@ -122,10 +119,7 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                 employee_id: emp_data?.emp_id,
                 hostnames: hostRows.map((row) => ({
                     issued_to: row.issued_to,
-                    hostname:
-                        row.hostname === "Other"
-                            ? row.hostname_other
-                            : row.hostname,
+                    hostname: row.hostname,
                     location:
                         row.location === "Other"
                             ? row.location_other
@@ -320,50 +314,26 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                                             )}
                                     </Row>
 
-                                    {/* Field */}
-                                    {row.hostname === "Other" ? (
-                                        <Input
-                                            placeholder="Enter hostname"
-                                            value={row.hostname_other}
-                                            style={inputStyle}
-                                            onChange={(e) =>
-                                                updateRow(
-                                                    i,
-                                                    "hostname_other",
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    ) : (
-                                        <Select
-                                            placeholder="Select Hostname"
-                                            value={row.hostname || undefined}
-                                            style={selectStyle}
-                                            showSearch
-                                            onChange={(val) =>
-                                                updateRow(i, "hostname", val)
-                                            }
-                                            filterOption={(input, option) =>
-                                                (option?.label ?? "")
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        input.toLowerCase(),
-                                                    )
-                                            }
-                                            options={[
-                                                ...hostnames.map((host) => ({
-                                                    label: `${host.hostname || host.serial_number} - ${host.serial_number}`,
-                                                    value:
-                                                        host.hostname ||
-                                                        host.serial_number,
-                                                })),
-                                                {
-                                                    label: "Other",
-                                                    value: "Other",
-                                                },
-                                            ]}
-                                        />
-                                    )}
+                                    <Select
+                                        placeholder="Select Hostname"
+                                        value={row.hostname || undefined}
+                                        style={selectStyle}
+                                        showSearch
+                                        onChange={(val) =>
+                                            updateRow(i, "hostname", val)
+                                        }
+                                        filterOption={(input, option) =>
+                                            (option?.label ?? "")
+                                                .toLowerCase()
+                                                .includes(input.toLowerCase())
+                                        }
+                                        options={hostnames.map((host) => ({
+                                            label: `${host.hostname || host.serial_number} - ${host.serial_number}`,
+                                            value:
+                                                host.hostname ||
+                                                host.serial_number,
+                                        }))}
+                                    />
                                 </Col>
 
                                 <Col span={12}>

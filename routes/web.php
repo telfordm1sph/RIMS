@@ -20,6 +20,9 @@ require __DIR__ . '/request.php';
 // Inventory
 require __DIR__ . '/inventory.php';
 
+// Issuance
+require __DIR__ . '/issuance.php';
+
 Route::get("/demo", [DemoController::class, 'index'])->name('demo');
 
 Route::fallback(function () {

@@ -44,6 +44,28 @@ class InventoryService
 
         return $response->json();
     }
+    protected function getTable(string $endpoint, array $params = [])
+    {
+        $query = [];
+
+        if (!empty($params)) {
+            $query['f'] = base64_encode(json_encode($params));
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->token,
+        ])->get("{$this->baseUrl}/{$endpoint}", $query);
+
+        if ($response->failed()) {
+            return [
+                'success' => false,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ];
+        }
+
+        return $response->json();
+    }
 
 
     /**
@@ -222,46 +244,5 @@ class InventoryService
     public function getHardwareDetails($search)
     {
         return $this->inventoryRepository->getHardwareDetails($search);
-    }
-    /**
-     * API: Create whole unit issuance
-     */
-    public function createIssuance(array $data)
-    {
-        $endpoint = "issuance/create";
-        return $this->post($endpoint, $data);
-    }
-
-    /**
-     * API: Create individual item issuance
-     */
-    public function createItemIssuance(array $data)
-    {
-        $endpoint = "issuance/items/create";
-        return $this->post($endpoint, $data);
-    }
-
-    /**
-     * API: Get issuances
-     */
-    public function getIssuances(array $filters = [])
-    {
-        return $this->get('issuance', $filters);
-    }
-
-    /**
-     * API: Get issuance details
-     */
-    public function getIssuanceDetails($id)
-    {
-        return $this->get("issuance/{$id}");
-    }
-
-    /**
-     * API: Acknowledge issuance
-     */
-    public function acknowledgeIssuance($id, array $data)
-    {
-        return $this->post("issuance/{$id}/acknowledge", $data);
     }
 }
