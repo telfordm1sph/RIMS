@@ -2,9 +2,8 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import DetailsDrawer from "@/Components/drawer/DetailsDrawer";
 import { useDrawer } from "@/Hooks/useDrawer";
 import { useApiTableConfig } from "@/Hooks/useApiTableConfig";
-import { Table, Card, Dropdown, Button, Tag, message } from "antd";
+import { Table, Card, Button, Tag, message } from "antd";
 import { EyeOutlined, LikeOutlined } from "@ant-design/icons";
-import { EllipsisVertical } from "lucide-react";
 import dayjs from "dayjs";
 import axios from "axios";
 import SkeletonTable from "@/Components/skeleton/SkeletonTable";
@@ -17,22 +16,36 @@ const IssuanceTable = () => {
     const { emp_data } = usePage().props;
 
     // ==============================
+    // Auth Helpers
+    // ==============================
+    const isHardwareUser = (record) =>
+        (record?.hardware_users || []).some(
+            (hu) => hu.user_id === emp_data?.emp_id,
+        );
+
+    const canAcknowledge = (record) =>
+        record?.acknowledgement?.status === 0 && isHardwareUser(record);
+
+    // ==============================
     // Acknowledge Handler
     // ==============================
     const handleAcknowledge = async (record) => {
         if (!record) return;
+
+        if (!isHardwareUser(record)) {
+            message.error(
+                "You are not authorized to acknowledge this issuance.",
+            );
+            return;
+        }
+
         try {
             setAckLoading(true);
-            const response = await axios.put(
-                route("issuance.acknowledge", record.id),
-                {
-                    employee_id: emp_data?.emp_id,
-                },
-            );
+            await axios.put(route("issuance.acknowledge", record.id), {
+                employee_id: emp_data?.emp_id,
+            });
 
-            console.log(response);
             message.success("Acknowledged successfully");
-
             closeDrawer();
             await fetchData();
         } catch (error) {
@@ -51,13 +64,15 @@ const IssuanceTable = () => {
     const fetchDetails = async (record) => {
         try {
             const { data: res } = await axios.get(
-                route("hardware.full.details", { hardwareId: record.hostname }),
+                route("hardware.full.details", {
+                    hardwareId: record.hostname,
+                }),
             );
-            console.log(res.data);
 
             if (!res?.success) return { fieldGroups: [] };
 
             const hw = res.data;
+            console.log(hw);
 
             const partsArray = (hw.parts || []).map((part) => ({
                 id: part.id,
@@ -107,6 +122,22 @@ const IssuanceTable = () => {
                         { label: "IP Address", value: hw.ip_address || "-" },
                         { label: "Wifi MAC", value: hw.wifi_mac || "-" },
                         { label: "LAN MAC", value: hw.lan_mac || "-" },
+                        {
+                            label: "Department",
+                            value: hw.department_name || "-",
+                        },
+                        {
+                            label: "Location",
+                            value: hw.location_name || "-",
+                        },
+                        {
+                            label: "Product Line",
+                            value: hw.pl_name || "-",
+                        },
+                        {
+                            label: "Station",
+                            value: hw.station_name || "-",
+                        },
                     ],
                 },
                 { title: "Parts", subGroups: partsArray },
@@ -130,33 +161,50 @@ const IssuanceTable = () => {
     // ==============================
     const columnDefinitions = [
         {
+            title: "Issuance No.",
+            dataIndex: "issuance_number",
+            key: "issuance_number",
+            sorter: true,
+        },
+        {
             title: "Request No.",
             dataIndex: "request_number",
-            sorter: true,
             key: "request_number",
+            sorter: true,
         },
         {
             title: "Hostname",
             dataIndex: "hostname",
-            sorter: true,
             key: "hostname",
+            sorter: true,
         },
         {
             title: "Location",
-            dataIndex: "location",
+            dataIndex: "location_name",
+            key: "location_name",
             sorter: true,
-            key: "location",
         },
         {
-            title: "Recipient Name",
-            dataIndex: "recipient_name",
-            sorter: true,
-            key: "recipient_name",
+            title: "Assigned Users",
+            key: "hardware_users",
+            render: (_, record) => {
+                const users = record.hardware_users || [];
+                if (!users.length)
+                    return <span className="text-gray-400">-</span>;
+                return (
+                    <div className="flex flex-col gap-1">
+                        {users.map((hu) => (
+                            <Tag key={hu.user_id} color="blue">
+                                {hu.user_name}
+                            </Tag>
+                        ))}
+                    </div>
+                );
+            },
         },
         {
             title: "Remarks",
             dataIndex: "remarks",
-            sorter: true,
             key: "remarks",
         },
         {
@@ -170,11 +218,11 @@ const IssuanceTable = () => {
         {
             title: "Issued By",
             dataIndex: "creator_name",
-            sorter: true,
             key: "creator_name",
+            sorter: true,
         },
         {
-            title: "Acknowledgement Status",
+            title: "Status",
             key: "acknowledgement_status",
             render: (_, record) => (
                 <Tag color={record.acknowledgement?.status_color || "gold"}>
@@ -183,33 +231,36 @@ const IssuanceTable = () => {
             ),
         },
         {
+            title: "Acknowledged By",
+            key: "acknowledged_by_name",
+            render: (_, record) =>
+                record.acknowledgement?.status === 1
+                    ? record.acknowledgement?.acknowledged_by_name || "-"
+                    : "-",
+        },
+        {
             title: "Acknowledged At",
             key: "acknowledged_at",
-            dataIndex: ["acknowledgement", "acknowledged_at"], // access nested field
+            dataIndex: ["acknowledgement", "acknowledged_at"],
+            sorter: true,
             render: (value, record) =>
                 record.acknowledgement?.status === 1 && value
                     ? dayjs(value).format("MMM D, YYYY hh:mm A")
-                    : "-", // show dash if not acknowledged
-            sorter: true, // optional if you want to sort by date
+                    : "-",
         },
-
         {
             title: "Actions",
             key: "actions",
-            width: 100,
+            width: 120,
             fixed: "right",
             render: (_, record) => {
-                const isAcknowledgable =
-                    record.acknowledgement?.status === 0 &&
-                    record.acknowledgement?.acknowledged_by ===
-                        emp_data?.emp_id;
-
+                const acknowledgeAllowed = canAcknowledge(record);
                 return (
                     <Button
-                        color={isAcknowledgable ? "primary" : "default"} // blue for Acknowledge, grey for View
-                        variant="filled" // solid style
+                        color={acknowledgeAllowed ? "primary" : "default"}
+                        variant="filled"
                         icon={
-                            isAcknowledgable ? (
+                            acknowledgeAllowed ? (
                                 <LikeOutlined />
                             ) : (
                                 <EyeOutlined />
@@ -217,7 +268,7 @@ const IssuanceTable = () => {
                         }
                         onClick={() => handleView(record)}
                     >
-                        {isAcknowledgable ? "Acknowledge" : "View"}
+                        {acknowledgeAllowed ? "Acknowledge" : "View"}
                     </Button>
                 );
             },
@@ -235,11 +286,11 @@ const IssuanceTable = () => {
         handleTableChange,
         fetchData,
     } = useApiTableConfig(route("issuance.list"), columnDefinitions);
+    console.log(data);
 
-    // Determine if acknowledge button should be shown in drawer
     const showAcknowledgeButton =
-        selectedItem?.acknowledgement?.status == 0 &&
-        selectedItem?.acknowledgement?.acknowledged_by == emp_data?.emp_id;
+        selectedItem?.acknowledgement?.status === 0 &&
+        isHardwareUser(selectedItem);
 
     // ==============================
     // Render
@@ -264,6 +315,7 @@ const IssuanceTable = () => {
             <DetailsDrawer
                 visible={drawerOpen}
                 fieldGroups={selectedItem?.fieldGroups || []}
+                issuanceData={selectedItem} // pass full record
                 loading={false}
                 onClose={closeDrawer}
                 showAcknowledge={showAcknowledgeButton}

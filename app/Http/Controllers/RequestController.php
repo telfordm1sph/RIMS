@@ -139,12 +139,10 @@ class RequestController extends Controller
     }
     public function RequestAction(Request $request)
     {
-        // dd($request->all());
         $empData = session('emp_data');
         $requestId = $request->input('request_number');
         $remarks = $request->input('remarks');
         $actionType = strtoupper($request->input('action'));
-
 
         $request->merge([
             'action' => $actionType
@@ -154,16 +152,46 @@ class RequestController extends Controller
             'request_number' => 'required|string',
             'action' => 'required|string|in:APPROVE,DISAPPROVE,ISSUED',
             'remarks' => 'nullable|string',
-
         ]);
 
         try {
-            $success = $this->requestService->requestAction($requestId, $empData, $actionType, $remarks);
-            if ($success) {
+            if ($actionType === 'ISSUED') {
+                // Check if request can be issued
+                $requestId_num = $this->requestService->getRequestIdByNumber($requestId);
+                $canIssue = $this->requestService->canRequestBeIssued($requestId_num);
+
+                if (!$canIssue['can_issue']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $canIssue['reason']
+                    ], 400);
+                }
+
+                // Update request status based on items
+                $success = $this->requestService->updateRequestStatusBasedOnItems($requestId_num);
+
+                if ($success['success']) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => $success['message'],
+                        'new_status' => $success['new_status'],
+                        'new_status_label' => $success['new_status_label']
+                    ]);
+                }
+
                 return response()->json([
-                    'success' => true,
-                    'message' => "Request {$actionType} successfully."
-                ]);
+                    'success' => false,
+                    'message' => $success['message'] ?? 'Failed to update request status'
+                ], 400);
+            } else {
+                $success = $this->requestService->requestAction($requestId, $empData, $actionType, $remarks);
+
+                if ($success) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Request {$actionType} successfully."
+                    ]);
+                }
             }
 
             return response()->json([
@@ -173,7 +201,7 @@ class RequestController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update reqeust: ' . $e->getMessage()
+                'message' => 'Failed to update request: ' . $e->getMessage()
             ], 500);
         }
     }

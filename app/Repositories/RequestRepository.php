@@ -118,4 +118,9 @@ class RequestRepository
     {
         return RequestItem::find($itemId);
     }
+    // Add to RequestRepository.php
+    public function getRequestByNumber(string $requestNumber): ?Request
+    {
+        return Request::where('request_number', $requestNumber)->first();
+    }
 }

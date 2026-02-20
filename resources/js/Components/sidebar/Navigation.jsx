@@ -31,11 +31,6 @@ export default function NavLinks({ isSidebarOpen }) {
             label: "Unit Issuance",
             icon: <Box className="text-base" />, // Box icon for units
         },
-        {
-            href: route("issuance.items.table"),
-            label: "Item Issuance",
-            icon: <Layers className="text-base" />, // Layers icon for items
-        },
     ];
 
     return (

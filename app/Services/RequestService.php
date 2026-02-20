@@ -258,7 +258,7 @@ class RequestService
 
             // Add location name if location exists
             if (!empty($item->location)) {
-                $itemArray['location_name'] = $locations[$item->location] ?? 'Unknown';
+                $itemArray['location_name'] = $locations[$item->location] ?? $item->location;
             } else {
                 $itemArray['location_name'] = null;
             }
@@ -462,11 +462,118 @@ class RequestService
         });
     }
     /**
+     * Update request status based on its items
+     * If all items are ISSUED (2) -> request becomes ISSUED (4)
+     * If there are any PENDING (1) items -> request stays APPROVED (3)
+     */
+    public function updateRequestStatusBasedOnItems(int $requestId): array
+    {
+        try {
+            $request = $this->repository->findById($requestId);
+
+            if (!$request) {
+                return [
+                    'success' => false,
+                    'message' => 'Request not found'
+                ];
+            }
+
+            // Only update if request is in APPROVED status
+            // You might want to also check if it's in other statuses that can be issued
+            if (!in_array($request->status, [Status::APPROVED, Status::TRIAGED])) {
+                return [
+                    'success' => false,
+                    'message' => 'Request is not in a status that can be issued',
+                    'current_status' => $request->status
+                ];
+            }
+
+            // Get all items for this request
+            $items = $request->items;
+
+            if ($items->isEmpty()) {
+                return [
+                    'success' => false,
+                    'message' => 'No items found for this request'
+                ];
+            }
+
+            // Check item statuses
+            $hasPending = false;
+            $allIssued = true;
+
+            foreach ($items as $item) {
+                if ($item->item_status == ItemStatus::PENDING) { // 1 = PENDING
+                    $hasPending = true;
+                    $allIssued = false;
+                    break; // Can break early since we found a pending item
+                }
+
+                if ($item->item_status != ItemStatus::ISSUED) { // If any item is not ISSUED (2)
+                    $allIssued = false;
+                }
+            }
+
+            $newStatus = null;
+            $statusChanged = false;
+
+            if ($hasPending) {
+                // There are still pending items -> stay at APPROVED (3)
+                if ($request->status != Status::APPROVED) {
+                    $newStatus = Status::APPROVED;
+                    $statusChanged = true;
+                }
+            } elseif ($allIssued) {
+                // All items are ISSUED (2) -> request becomes ISSUED (4)
+                if ($request->status != Status::ISSUED) {
+                    $newStatus = Status::ISSUED;
+                    $statusChanged = true;
+                }
+            }
+
+            // Update request status if changed
+            if ($statusChanged && $newStatus !== null) {
+                $this->repository->updateRequest($request, [
+                    'status' => $newStatus,
+                    'updated_at' => now()
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => "Request status updated to " . Status::getLabel($newStatus),
+                    'new_status' => $newStatus,
+                    'new_status_label' => Status::getLabel($newStatus)
+                ];
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Request status is already correct',
+                'new_status' => $request->status,
+                'new_status_label' => Status::getLabel($request->status)
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error updating request status: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Update request item status
      */
     public function updateRequestItemStatus(int $itemId, int $status): array
     {
         try {
+            // Validate status
+            if (!in_array($status, [ItemStatus::PENDING, ItemStatus::ISSUED, ItemStatus::CANCELED])) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid item status'
+                ];
+            }
+
             $item = $this->repository->getRequestItemById($itemId);
 
             if (!$item) {
@@ -476,13 +583,30 @@ class RequestService
                 ];
             }
 
+            $oldStatus = $item->item_status;
             $updated = $this->repository->updateRequestItemStatus($itemId, $status);
 
             if ($updated) {
-                return [
+                $result = [
                     'success' => true,
                     'message' => 'Request item status updated successfully',
+                    'item_id' => $itemId,
+                    'old_status' => $oldStatus,
+                    'new_status' => $status
                 ];
+
+                // After updating the item, check and update the parent request status
+                // Only do this if the item status changed to/from ISSUED or if all items might now be issued
+                if ($status == ItemStatus::ISSUED || $oldStatus == ItemStatus::ISSUED) {
+                    $requestUpdateResult = $this->updateRequestStatusBasedOnItems($item->request_id);
+
+                    $result['request_status_updated'] = $requestUpdateResult['success'];
+                    $result['request_new_status'] = $requestUpdateResult['new_status'] ?? null;
+                    $result['request_new_status_label'] = $requestUpdateResult['new_status_label'] ?? null;
+                    $result['request_message'] = $requestUpdateResult['message'] ?? null;
+                }
+
+                return $result;
             }
 
             return [
@@ -495,5 +619,124 @@ class RequestService
                 'message' => 'Error updating request item status: ' . $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Bulk update request items status
+     */
+    public function bulkUpdateRequestItemsStatus(array $itemIds, int $status): array
+    {
+        try {
+            DB::beginTransaction();
+
+            $requestIds = [];
+            $updatedCount = 0;
+            $results = [];
+
+            foreach ($itemIds as $itemId) {
+                $result = $this->updateRequestItemStatus($itemId, $status);
+                $results[] = $result;
+
+                if ($result['success']) {
+                    $updatedCount++;
+                    // Get the item to find its request_id
+                    $item = $this->repository->getRequestItemById($itemId);
+                    if ($item) {
+                        $requestIds[$item->request_id] = true;
+                    }
+                }
+            }
+
+            // Update status for all affected requests
+            $requestResults = [];
+            foreach (array_keys($requestIds) as $requestId) {
+                $requestResults[] = $this->updateRequestStatusBasedOnItems($requestId);
+            }
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => "Updated {$updatedCount} out of " . count($itemIds) . " items",
+                'updated_count' => $updatedCount,
+                'total_items' => count($itemIds),
+                'item_results' => $results,
+                'requests_updated' => $requestResults
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return [
+                'success' => false,
+                'message' => 'Error in bulk update: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get request by request number
+     */
+    public function getRequestByNumber(string $requestNumber): ?array
+    {
+        $request = $this->repository->getRequestByNumber($requestNumber);
+
+        if (!$request) {
+            return null;
+        }
+
+        return $this->getRequestById($request->id, session('emp_data') ?? []);
+    }
+
+    /**
+     * Get request ID by number
+     */
+    public function getRequestIdByNumber(string $requestNumber): ?int
+    {
+        $request = $this->repository->getRequestByNumber($requestNumber);
+        return $request ? $request->id : null;
+    }
+
+    /**
+     * Check if request can be fully issued
+     */
+    public function canRequestBeIssued(int $requestId): array
+    {
+        $request = $this->repository->findById($requestId);
+
+        if (!$request) {
+            return [
+                'can_issue' => false,
+                'reason' => 'Request not found'
+            ];
+        }
+
+        // Check if request is in APPROVED status
+        if ($request->status != Status::APPROVED) {
+            return [
+                'can_issue' => false,
+                'reason' => 'Request must be in Approved status to issue items'
+            ];
+        }
+
+        // Check if there are any pending items
+        $hasPending = false;
+        foreach ($request->items as $item) {
+            if ($item->item_status == ItemStatus::PENDING) {
+                $hasPending = true;
+                break;
+            }
+        }
+
+        if (!$hasPending) {
+            return [
+                'can_issue' => false,
+                'reason' => 'No pending items to issue'
+            ];
+        }
+
+        return [
+            'can_issue' => true,
+            'reason' => 'Request can be issued',
+            'pending_items_count' => $request->items->where('item_status', ItemStatus::PENDING)->count()
+        ];
     }
 }

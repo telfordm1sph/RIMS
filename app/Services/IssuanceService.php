@@ -137,17 +137,20 @@ class IssuanceService
     /**
      * API: Get issuances
      */
-    public function getIssuances(array $filters = [])
+    public function getIssuances(array $filters = [], ?int $employeeId = null)
     {
-        $endpoint = "issuance/whole-unit/table";
-        return $this->getTable($endpoint, $filters);
+        $endpoint = "issuance/table";
+
+        // Send filters in 'f' and employee_id as separate field
+        $payload = [
+            'f' => base64_encode(json_encode($filters)),
+            'employee_id' => $employeeId  // ✅ Direct in request body
+        ];
+
+        return $this->post($endpoint, $payload);
     }
 
-    public function getIssuanceItems(array $filters = [])
-    {
-        $endpoint = "issuance/individual-items/table";
-        return $this->getTable($endpoint, $filters);
-    }
+
     public function acknowledgeIssuance(int $id, array $data)
     {
         $endpoint = "issuance/acknowledge/{$id}";

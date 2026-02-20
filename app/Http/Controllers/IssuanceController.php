@@ -52,21 +52,28 @@ class IssuanceController extends Controller
      */
     public function getIssuances(Request $request)
     {
-        $filters = $request->query('f'); // base64 string
+        // Get employee from System B session
+        $empData = session('emp_data');
+        $employeeId = $empData['emp_id'] ?? null;
+
+        if (!$employeeId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Employee identification required.',
+            ], 401);
+        }
+
+        // Decode frontend filters
+        $filters = $request->query('f');
         $decodedFilters = $filters ? json_decode(base64_decode($filters), true) : [];
 
-        $issuances = $this->issuanceService->getIssuances($decodedFilters);
+        // Pass employee_id separately in request body (not inside filters)
+        $issuances = $this->issuanceService->getIssuances($decodedFilters, $employeeId);
+
         return response()->json($issuances);
     }
 
-    public function getIssuanceItems(Request $request)
-    {
-        $filters = $request->query('f'); // base64 string
-        $decodedFilters = $filters ? json_decode(base64_decode($filters), true) : [];
 
-        $issuanceItems = $this->issuanceService->getIssuanceItems($decodedFilters);
-        return response()->json($issuanceItems);
-    }
     public function acknowledgeIssuance($id, Request $request)
     {
         $data = $request->all();

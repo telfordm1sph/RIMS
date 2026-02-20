@@ -38,18 +38,22 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
         height: 36,
     };
     const selectStyle = { width: "100%", height: 36, borderRadius: 6 };
+    console.log(item);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
+                // Fetch locations
                 const locRes = await axios.get(route("locations.list"));
-                setLocations(locRes.data.map((loc) => loc.location_name));
 
+                // Save full objects: { id, location_name }
+                setLocations(locRes.data);
+
+                // Fetch hostnames if item type exists
                 if (item?.type_of_request) {
                     const hostRes = await axios.get(route("hostnames.list"), {
                         params: { type_of_request: item.type_of_request },
                     });
-                    console.log("Host", hostRes);
 
                     setHostnames(
                         hostRes.data.map((host) => ({
@@ -62,6 +66,7 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                 console.error(err);
             }
         };
+
         fetchData();
     }, [item?.type_of_request]);
 
@@ -107,11 +112,6 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                 return;
             }
 
-            if (hasEmptyLocation) {
-                message.error("Please fill in all locations");
-                return;
-            }
-
             setLoading(true);
 
             const payload = {
@@ -120,10 +120,7 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                 hostnames: hostRows.map((row) => ({
                     issued_to: row.issued_to,
                     hostname: row.hostname,
-                    location:
-                        row.location === "Other"
-                            ? row.location_other
-                            : row.location,
+                    location: item.location,
                     remarks: row.remarks || null,
                 })),
             };
@@ -252,6 +249,8 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                             }}
                         >
                             <h4>Item {i + 1}</h4>
+
+                            {/* Issued To and Request Number */}
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <Form.Item label="Issued To">
@@ -284,93 +283,19 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                                         />
                                     </Form.Item>
                                 </Col>
-                            </Row>{" "}
-                            <Row gutter={16}>
+                            </Row>
+
+                            {/* Hostname and Location aligned */}
+                            <Row gutter={16} align="bottom">
                                 <Col span={12}>
-                                    {/* Label row */}
-                                    <Row
-                                        justify="space-between"
-                                        align="middle"
-                                        style={{
-                                            minHeight: 32,
-                                            marginBottom: 8,
-                                        }}
-                                    >
-                                        <Text>Hostname</Text>
-
-                                        {row.hostname &&
-                                            row.hostname !== "Other" && (
-                                                <Button
-                                                    size="small"
-                                                    type="text"
-                                                    color="primary"
-                                                    variant="outlined"
-                                                    onClick={() =>
-                                                        openModalForRow(i)
-                                                    }
-                                                >
-                                                    <EditOutlined /> Update
-                                                </Button>
-                                            )}
-                                    </Row>
-
-                                    <Select
-                                        placeholder="Select Hostname"
-                                        value={row.hostname || undefined}
-                                        style={selectStyle}
-                                        showSearch
-                                        onChange={(val) =>
-                                            updateRow(i, "hostname", val)
-                                        }
-                                        filterOption={(input, option) =>
-                                            (option?.label ?? "")
-                                                .toLowerCase()
-                                                .includes(input.toLowerCase())
-                                        }
-                                        options={hostnames.map((host) => ({
-                                            label: `${host.hostname || host.serial_number} - ${host.serial_number}`,
-                                            value:
-                                                host.hostname ||
-                                                host.serial_number,
-                                        }))}
-                                    />
-                                </Col>
-
-                                <Col span={12}>
-                                    {/* Label row */}
-                                    <Row
-                                        justify="space-between"
-                                        align="middle"
-                                        style={{
-                                            minHeight: 32,
-                                            marginBottom: 8,
-                                        }}
-                                    >
-                                        <Text>Location</Text>
-                                    </Row>
-
-                                    {/* Field */}
-                                    {row.location === "Other" ? (
-                                        <Input
-                                            placeholder="Enter location"
-                                            value={row.location_other}
-                                            style={inputStyle}
-                                            onChange={(e) =>
-                                                updateRow(
-                                                    i,
-                                                    "location_other",
-                                                    e.target.value,
-                                                )
-                                            }
-                                        />
-                                    ) : (
+                                    <Form.Item label="Hostname">
                                         <Select
-                                            placeholder="Select Location"
-                                            value={row.location}
+                                            placeholder="Select Hostname"
+                                            value={row.hostname || undefined}
                                             style={selectStyle}
                                             showSearch
                                             onChange={(val) =>
-                                                updateRow(i, "location", val)
+                                                updateRow(i, "hostname", val)
                                             }
                                             filterOption={(input, option) =>
                                                 (option?.label ?? "")
@@ -379,20 +304,60 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                                                         input.toLowerCase(),
                                                     )
                                             }
-                                            options={[
-                                                ...locations.map((loc) => ({
-                                                    label: loc,
-                                                    value: loc,
-                                                })),
-                                                {
-                                                    label: "Other",
-                                                    value: "Other",
-                                                },
-                                            ]}
+                                            options={hostnames.map((host) => ({
+                                                label: `${host.hostname || host.serial_number} - ${host.serial_number}`,
+                                                value:
+                                                    host.hostname ||
+                                                    host.serial_number,
+                                            }))}
+                                            dropdownRender={(menu) => (
+                                                <>
+                                                    {menu}
+                                                    {row.hostname &&
+                                                        row.hostname !==
+                                                            "Other" && (
+                                                            <Button
+                                                                size="small"
+                                                                type="text"
+                                                                style={{
+                                                                    display:
+                                                                        "block",
+                                                                    width: "100%",
+                                                                }}
+                                                                onClick={() =>
+                                                                    openModalForRow(
+                                                                        i,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <EditOutlined />{" "}
+                                                                Update
+                                                            </Button>
+                                                        )}
+                                                </>
+                                            )}
                                         />
-                                    )}
+                                    </Form.Item>
                                 </Col>
 
+                                <Col span={12}>
+                                    <Form.Item label="Location">
+                                        <Input
+                                            value={item?.location_name || "-"}
+                                            readOnly
+                                            style={{
+                                                border: "1px solid #424242",
+                                                cursor: "not-allowed",
+                                                borderRadius: 6,
+                                                height: 36,
+                                            }}
+                                        />
+                                    </Form.Item>
+                                </Col>
+                            </Row>
+
+                            {/* Remarks */}
+                            <Row>
                                 <Col span={24}>
                                     <Form.Item
                                         label="Remarks"
