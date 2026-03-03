@@ -285,74 +285,70 @@ const IssueDrawer = ({ visible, onClose, request, item, onSuccess }) => {
                                 </Col>
                             </Row>
 
-                            {/* Hostname and Location aligned */}
-                            <Row gutter={16} align="bottom">
+                            <Row gutter={16} align="middle">
+                                {/* Hostname Column */}
                                 <Col span={12}>
-                                    <Form.Item label="Hostname">
-                                        <Select
-                                            placeholder="Select Hostname"
-                                            value={row.hostname || undefined}
-                                            style={selectStyle}
-                                            showSearch
-                                            onChange={(val) =>
-                                                updateRow(i, "hostname", val)
-                                            }
-                                            filterOption={(input, option) =>
-                                                (option?.label ?? "")
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        input.toLowerCase(),
-                                                    )
-                                            }
-                                            options={hostnames.map((host) => ({
-                                                label: `${host.hostname || host.serial_number} - ${host.serial_number}`,
-                                                value:
-                                                    host.hostname ||
-                                                    host.serial_number,
-                                            }))}
-                                            dropdownRender={(menu) => (
-                                                <>
-                                                    {menu}
-                                                    {row.hostname &&
-                                                        row.hostname !==
-                                                            "Other" && (
-                                                            <Button
-                                                                size="small"
-                                                                type="text"
-                                                                style={{
-                                                                    display:
-                                                                        "block",
-                                                                    width: "100%",
-                                                                }}
-                                                                onClick={() =>
-                                                                    openModalForRow(
-                                                                        i,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <EditOutlined />{" "}
-                                                                Update
-                                                            </Button>
-                                                        )}
-                                                </>
-                                            )}
-                                        />
-                                    </Form.Item>
+                                    <Row
+                                        align="middle"
+                                        gutter={8}
+                                        style={{ marginBottom: 4 }}
+                                    >
+                                        <Col flex="auto">
+                                            <Text strong>Hostname</Text>
+                                        </Col>
+                                        <Col>
+                                            {row.hostname &&
+                                                row.hostname !== "Other" && (
+                                                    <Button
+                                                        size="small"
+                                                        type="text"
+                                                        onClick={() =>
+                                                            openModalForRow(i)
+                                                        }
+                                                    >
+                                                        <EditOutlined /> Update
+                                                    </Button>
+                                                )}
+                                        </Col>
+                                    </Row>
+
+                                    <Select
+                                        placeholder="Select Hostname"
+                                        value={row.hostname || undefined}
+                                        style={{ width: "100%" }}
+                                        showSearch
+                                        onChange={(val) =>
+                                            updateRow(i, "hostname", val)
+                                        }
+                                        filterOption={(input, option) =>
+                                            (option?.label ?? "")
+                                                .toLowerCase()
+                                                .includes(input.toLowerCase())
+                                        }
+                                        options={hostnames.map((host) => ({
+                                            label: `${host.hostname || host.serial_number} - ${host.serial_number}`,
+                                            value:
+                                                host.hostname ||
+                                                host.serial_number,
+                                        }))}
+                                    />
                                 </Col>
 
+                                {/* Location Column */}
                                 <Col span={12}>
-                                    <Form.Item label="Location">
-                                        <Input
-                                            value={item?.location_name || "-"}
-                                            readOnly
-                                            style={{
-                                                border: "1px solid #424242",
-                                                cursor: "not-allowed",
-                                                borderRadius: 6,
-                                                height: 36,
-                                            }}
-                                        />
-                                    </Form.Item>
+                                    <div style={{ marginBottom: 4 }}>
+                                        <Text strong>Location</Text>
+                                    </div>
+                                    <Input
+                                        value={item?.location_name || "-"}
+                                        readOnly
+                                        style={{
+                                            border: "1px solid #424242",
+                                            cursor: "not-allowed",
+                                            borderRadius: 6,
+                                            height: 36,
+                                        }}
+                                    />
                                 </Col>
                             </Row>
 
