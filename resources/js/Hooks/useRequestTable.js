@@ -2,30 +2,47 @@ import { useState, useEffect, useRef } from "react";
 import { router } from "@inertiajs/react";
 
 const encodeParams = (params) => {
+    // Filter out empty values
     const filtered = Object.fromEntries(
-        Object.entries(params).filter(([_, v]) => v !== "" && v !== null)
+        Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== null && v !== undefined,
+        ),
     );
-    return { f: btoa(JSON.stringify(filtered)) };
+
+    // Convert to base64 only if there are parameters
+    if (Object.keys(filtered).length > 0) {
+        return { f: btoa(JSON.stringify(filtered)) };
+    }
+
+    return {};
 };
 
 export default function useRequestTable({ initialFilters, pagination }) {
     const [loading, setLoading] = useState(false);
-    const [searchValue, setSearchValue] = useState("");
-    const [statusFilter, setStatusFilter] = useState(
-        initialFilters?.status || "all"
+    const [searchValue, setSearchValue] = useState(
+        initialFilters?.search || "",
     );
-    const [filters, setFilters] = useState(initialFilters || {});
-
+    const [statusFilter, setStatusFilter] = useState(
+        initialFilters?.status || "all",
+    );
     const searchTimeoutRef = useRef(null);
-
-    useEffect(() => {
-        setSearchValue(filters?.search || "");
-        setStatusFilter(filters?.status || "all");
-    }, [filters?.search, filters?.status]);
 
     const fetchTableData = (params) => {
         setLoading(true);
-        router.get(route("request.table"), encodeParams(params), {
+
+        // Prepare the request parameters
+        const requestParams = {
+            page: params.page || 1,
+            ...(params.perPage && { perPage: params.perPage }),
+            ...(params.search && { search: params.search }),
+            ...(params.status &&
+                params.status !== "all" && { status: params.status }),
+        };
+
+        // Encode the parameters
+        const encodedParams = encodeParams(requestParams);
+
+        router.get(route("request.table"), encodedParams, {
             preserveState: true,
             preserveScroll: true,
             onFinish: () => setLoading(false),
@@ -37,23 +54,9 @@ export default function useRequestTable({ initialFilters, pagination }) {
 
         const params = {
             page: 1,
-            pageSize: pagination?.per_page || 10,
-            search: filters?.search || "",
+            perPage: pagination?.perPage || 10,
+            search: searchValue,
             status: value,
-            sortField: filters?.sortField || "created_at",
-            sortOrder: filters?.sortOrder || "desc",
-        };
-        fetchTableData(params);
-    };
-
-    const handleTableChange = (paginationData, _, sorter) => {
-        const params = {
-            page: paginationData.current,
-            pageSize: paginationData.pageSize,
-            search: filters?.search || "",
-            status: statusFilter,
-            sortField: sorter?.field || "created_at",
-            sortOrder: sorter?.order === "ascend" ? "asc" : "desc",
         };
         fetchTableData(params);
     };
@@ -65,24 +68,41 @@ export default function useRequestTable({ initialFilters, pagination }) {
         searchTimeoutRef.current = setTimeout(() => {
             const params = {
                 page: 1,
-                pageSize: pagination?.per_page || 10,
+                perPage: pagination?.perPage || 10,
                 search: value,
                 status: statusFilter,
-                sortField: filters?.sortField || "created_at",
-                sortOrder: filters?.sortOrder || "desc",
             };
             fetchTableData(params);
         }, 500);
+    };
+
+    const handlePageChange = (page, perPage) => {
+        const params = {
+            page,
+            perPage: perPage || pagination?.perPage || 10,
+            search: searchValue,
+            status: statusFilter,
+        };
+        fetchTableData(params);
+    };
+
+    const handlePerPageChange = (perPage) => {
+        const params = {
+            page: 1,
+            perPage,
+            search: searchValue,
+            status: statusFilter,
+        };
+        fetchTableData(params);
     };
 
     return {
         loading,
         searchValue,
         statusFilter,
-        filters,
-        setFilters,
         handleStatusChange,
-        handleTableChange,
         handleSearch,
+        handlePageChange,
+        handlePerPageChange,
     };
 }

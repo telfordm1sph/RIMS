@@ -1,45 +1,177 @@
+import React, { useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
-import React, { useMemo } from "react";
 import { Head, router, usePage } from "@inertiajs/react";
-import { Button, Card, message, Popconfirm, Space, Table, Tag } from "antd";
 import {
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    DeleteOutlined,
-    PlusOutlined,
-} from "@ant-design/icons";
-import { useRequestTypeDrawer } from "@/Hooks/useRequestTypeDrawer";
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableCell,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Delete, Plus, Check, X, Search } from "lucide-react";
 import RequestTypeDrawer from "@/Components/requestType/RequestTypeDrawer";
+import TablePagination from "@/Components/TablePagination";
+import axios from "axios";
 
-const RequestType = () => {
-    const { requestTypes } = usePage().props;
-    console.log(usePage().props);
-
+export default function RequestType() {
     const {
-        drawerVisible,
-        drawerMode,
-        editingRequestType,
-        openCreateDrawer,
-        closeDrawer,
-        handleRowClick,
-    } = useRequestTypeDrawer();
-    const dataSource = useMemo(
-        () =>
-            requestTypes?.map((type) => ({
-                key: type.id,
-                id: type.id,
-                request_category: type.request_category,
-                request_name: type.request_name,
-                request_description: type.request_description,
-                is_active: Boolean(type.is_active),
-                created_at: type.created_at,
-                updated_at: type.updated_at,
-            })) || [],
-        [requestTypes]
-    );
-    const handleSubmit = async (data) => {
-        console.log("Form values:", data);
+        requestTypes,
+        pagination,
+        filters: initialFilters = {},
+    } = usePage().props;
 
+    const [drawerVisible, setDrawerVisible] = useState(false);
+    const [drawerMode, setDrawerMode] = useState("create");
+    const [editingRequestType, setEditingRequestType] = useState(null);
+    const [searchValue, setSearchValue] = useState(initialFilters.search || "");
+    const [statusFilter, setStatusFilter] = useState(
+        initialFilters.status || "all",
+    );
+
+    // Delete confirmation state
+    const [deleteDialog, setDeleteDialog] = useState({
+        isOpen: false,
+        id: null,
+    });
+
+    // Encode filters to base64
+    const encodeFilters = (filters) => {
+        return btoa(JSON.stringify(filters));
+    };
+
+    // Handle search with debounce
+    const handleSearch = (value) => {
+        setSearchValue(value);
+
+        const filters = {
+            ...(value ? { search: value } : {}),
+            ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+        };
+
+        const encodedFilters =
+            Object.keys(filters).length > 0 ? encodeFilters(filters) : null;
+
+        router.get(
+            route("requestType.form"),
+            {
+                filters: encodedFilters,
+                page: 1,
+                per_page: pagination?.per_page,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    // Handle status filter change
+    const handleStatusChange = (status) => {
+        setStatusFilter(status);
+
+        const filters = {
+            ...(searchValue ? { search: searchValue } : {}),
+            ...(status !== "all" ? { status } : {}),
+        };
+
+        const encodedFilters =
+            Object.keys(filters).length > 0 ? encodeFilters(filters) : null;
+
+        router.get(
+            route("requestType.form"),
+            {
+                filters: encodedFilters,
+                page: 1,
+                per_page: pagination?.per_page,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    // Pagination handlers
+    const handlePageChange = (page) => {
+        const filters = {
+            ...(searchValue ? { search: searchValue } : {}),
+            ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+        };
+
+        const encodedFilters =
+            Object.keys(filters).length > 0 ? encodeFilters(filters) : null;
+
+        router.get(
+            route("requestType.form"),
+            {
+                page,
+                per_page: pagination?.per_page,
+                filters: encodedFilters,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const handlePerPageChange = (size) => {
+        const filters = {
+            ...(searchValue ? { search: searchValue } : {}),
+            ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+        };
+
+        const encodedFilters =
+            Object.keys(filters).length > 0 ? encodeFilters(filters) : null;
+
+        router.get(
+            route("requestType.form"),
+            {
+                per_page: size,
+                page: 1,
+                filters: encodedFilters,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
+    const openCreateDrawer = () => {
+        setDrawerMode("create");
+        setEditingRequestType(null);
+        setDrawerVisible(true);
+    };
+
+    const handleRowClick = (record) => {
+        setDrawerMode("edit");
+        setEditingRequestType(record);
+        setDrawerVisible(true);
+    };
+
+    const closeDrawer = () => setDrawerVisible(false);
+
+    const handleSubmit = async (data) => {
         try {
             const { id, ...formData } = data;
             let response;
@@ -47,183 +179,236 @@ const RequestType = () => {
             if (id) {
                 response = await axios.put(
                     route("request-types.update", id),
-                    formData
+                    formData,
                 );
             } else {
                 response = await axios.post(
                     route("request-types.store"),
-                    formData
+                    formData,
                 );
             }
 
             if (response.data.success) {
-                message.success(
+                toast.success(
                     id
                         ? "Request type updated successfully!"
-                        : `Request type created successfully! ID: ${
-                              response.data.id || ""
-                          }`
+                        : `Request type created successfully!`,
                 );
-
                 closeDrawer();
-                router.reload({ only: ["requestTypes"] });
+                router.reload({
+                    only: ["requestTypes", "pagination"],
+                    preserveState: true,
+                    preserveScroll: false,
+                });
             } else {
-                message.error(response.data.message || "Operation failed");
+                toast.error(response.data.message || "Operation failed");
             }
         } catch (error) {
-            message.error(
-                id
-                    ? "Failed to update request type. Please try again."
-                    : "Failed to create request type. Please try again."
+            console.error(error);
+            toast.error(
+                error.response?.data?.message ||
+                    "Failed to process request. Please try again.",
             );
-            console.error("Request type submission error:", error);
         }
     };
 
-    const handleDelete = async (id, e) => {
-        // Stop propagation to prevent row click
-        e?.stopPropagation();
+    const openDeleteDialog = (id, e) => {
+        e.stopPropagation();
+        setDeleteDialog({ isOpen: true, id });
+    };
 
+    const handleDelete = async () => {
         try {
             const response = await axios.delete(
-                route("request-types.destroy", id)
+                route("request-types.destroy", deleteDialog.id),
             );
 
             if (response.data.success) {
-                message.success("Request type deleted successfully!");
-                router.reload({ only: ["requestTypes"] });
+                toast.success("Request type deleted successfully!");
+                setDeleteDialog({ isOpen: false, id: null });
+                router.reload({
+                    only: ["requestTypes", "pagination"],
+                    preserveState: true,
+                    preserveScroll: false,
+                });
             } else {
-                message.error(
-                    response.data.message || "Delete operation failed"
-                );
+                toast.error(response.data.message || "Delete operation failed");
             }
         } catch (error) {
-            message.error("Failed to delete request type. Please try again.");
-            console.error("Request type deletion error:", error);
+            console.error(error);
+            toast.error("Failed to delete request type. Please try again.");
         }
     };
-    const columns = [
-        {
-            title: "ID",
-            dataIndex: "id",
-            key: "id",
-            width: 80,
-            sorter: (a, b) => a.id - b.id,
-        },
 
-        {
-            title: "Category",
-            dataIndex: "request_category",
-            key: "request_category",
-            sorter: (a, b) =>
-                a.request_category.localeCompare(b.request_category),
-        },
-        {
-            title: "Name",
-            dataIndex: "request_name",
-            key: "request_name",
-            sorter: (a, b) => a.request_name.localeCompare(b.request_name),
-        },
-        {
-            title: "Description",
-            dataIndex: "request_description",
-            key: "request_description",
-            sorter: (a, b) =>
-                a.request_description.localeCompare(b.request_description),
-        },
-        {
-            title: "Status",
-            dataIndex: "is_active",
-            key: "is_active",
-            align: "center",
-            width: 120,
-            filters: [
-                { text: "Active", value: "1" },
-                { text: "Inactive", value: "0" },
-            ],
-            onFilter: (value, record) => record.is_active === value,
-            render: (is_active) => {
-                const isActive = is_active == "1";
-                return (
-                    <Tag
-                        icon={
-                            isActive ? (
-                                <CheckCircleOutlined />
-                            ) : (
-                                <CloseCircleOutlined />
-                            )
-                        }
-                        color={isActive ? "success" : "error"}
-                    >
-                        {isActive ? "Active" : "Inactive"}
-                    </Tag>
-                );
-            },
-        },
-        {
-            title: "Actions",
-            key: "actions",
-            align: "center",
-            width: 100,
-            render: (_, record) => (
-                <Space size="small">
-                    <Popconfirm
-                        title="Delete Request Type"
-                        description="Are you sure you want to delete this request type?"
-                        onConfirm={(e) => handleDelete(record.id, e)}
-                        onCancel={(e) => e?.stopPropagation()}
-                        okText="Yes"
-                        cancelText="No"
-                        okButtonProps={{ danger: true }}
-                    >
-                        <Button
-                            type="text"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                    </Popconfirm>
-                </Space>
-            ),
-        },
-    ];
     return (
         <AuthenticatedLayout>
             <Head title="Manage Request Types" />
-            <div className="container mx-auto">
-                <Card
-                    title="Request Types"
-                    extra={
+            <div className="container mx-auto py-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>Request Types</CardTitle>
                         <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
+                            variant="default"
+                            size="sm"
                             onClick={openCreateDrawer}
+                            className="flex items-center gap-1"
                         >
-                            Create Request Type
+                            <Plus size={16} />
+                            Create
                         </Button>
+                    </CardHeader>
+                    <CardContent>
+                        {/* Search and Filter Bar */}
+                        <div className="flex gap-4 mb-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                                <Input
+                                    placeholder="Search by category, name, or description..."
+                                    value={searchValue}
+                                    onChange={(e) =>
+                                        handleSearch(e.target.value)
+                                    }
+                                    className="pl-8"
+                                />
+                            </div>
+                            <select
+                                className="border border-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                value={statusFilter}
+                                onChange={(e) =>
+                                    handleStatusChange(e.target.value)
+                                }
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableCell>ID</TableCell>
+                                    <TableCell>Category</TableCell>
+                                    <TableCell>Name</TableCell>
+                                    <TableCell>Description</TableCell>
+                                    <TableCell>Status</TableCell>
+                                    <TableCell>Actions</TableCell>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {requestTypes?.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className="text-center py-8 text-gray-500"
+                                        >
+                                            No request types available
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    requestTypes?.map((record) => (
+                                        <TableRow
+                                            key={record.id}
+                                            className="cursor-pointer hover:bg-muted"
+                                            onClick={() =>
+                                                handleRowClick(record)
+                                            }
+                                        >
+                                            <TableCell>{record.id}</TableCell>
+                                            <TableCell>
+                                                {record.request_category}
+                                            </TableCell>
+                                            <TableCell>
+                                                {record.request_name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {record.request_description}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant={
+                                                        record.is_active
+                                                            ? "success"
+                                                            : "destructive"
+                                                    }
+                                                    className="flex items-center gap-1 w-fit"
+                                                >
+                                                    {record.is_active ? (
+                                                        <Check size={14} />
+                                                    ) : (
+                                                        <X size={14} />
+                                                    )}
+                                                    {record.is_active
+                                                        ? "Active"
+                                                        : "Inactive"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={(e) =>
+                                                        openDeleteDialog(
+                                                            record.id,
+                                                            e,
+                                                        )
+                                                    }
+                                                >
+                                                    <Delete size={14} />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+
+                        {/* Pagination */}
+                        {pagination && pagination.total > 0 && (
+                            <div className="mt-4 border-t pt-4">
+                                <TablePagination
+                                    pagination={pagination}
+                                    onChange={handlePageChange}
+                                    onChangePerPage={handlePerPageChange}
+                                />
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Delete Confirmation Dialog */}
+                <AlertDialog
+                    open={deleteDialog.isOpen}
+                    onOpenChange={(isOpen) =>
+                        setDeleteDialog({
+                            isOpen,
+                            id: isOpen ? deleteDialog.id : null,
+                        })
                     }
                 >
-                    <Table
-                        columns={columns}
-                        dataSource={dataSource}
-                        onRow={(record) => ({
-                            onClick: () => handleRowClick(record),
-                            style: { cursor: "pointer" },
-                        })}
-                        pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
-                            pageSizeOptions: ["10", "25", "50", "100"],
-                            showTotal: (total, range) =>
-                                `${range[0]}-${range[1]} of ${total} items`,
-                        }}
-                        bordered
-                        size="middle"
-                        locale={{
-                            emptyText: "No request types data available",
-                        }}
-                    />
-                </Card>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Are you absolutely sure?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will
+                                permanently delete this request type and remove
+                                it from our servers.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDelete}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Delete
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
                 <RequestTypeDrawer
                     visible={drawerVisible}
                     mode={drawerMode}
@@ -234,6 +419,4 @@ const RequestType = () => {
             </div>
         </AuthenticatedLayout>
     );
-};
-
-export default RequestType;
+}

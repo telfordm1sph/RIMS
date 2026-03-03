@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { message } from "antd";
+import { toast } from "sonner";
 
 export const useRequestCart = (REQUEST_CATALOG) => {
     const [cart, setCart] = useState([]);
 
     const addToCart = (selectedRequest, mode = "per-item") => {
         if (!selectedRequest) {
-            message.warning("Please select a request type");
+            toast.warning("Please select a request type");
             return;
         }
 
@@ -23,17 +23,15 @@ export const useRequestCart = (REQUEST_CATALOG) => {
         if (!selected) return;
 
         if (mode === "bulk") {
-            // For bulk mode, check if category already exists
             if (
                 cart.find((c) => c.category === category && c.mode === "bulk")
             ) {
-                message.info("Bulk request for this category already added");
+                toast.info("Bulk request for this category already added");
                 return;
             }
 
-            // Get all items in this category
             const categoryData = REQUEST_CATALOG.find(
-                (cat) => cat.category === category
+                (cat) => cat.category === category,
             );
 
             setCart([
@@ -49,16 +47,15 @@ export const useRequestCart = (REQUEST_CATALOG) => {
                         location: "",
                         location_other: "",
                         purpose: "",
-                        items: [], // Array of { name, qty }
+                        items: [],
                     },
                 },
             ]);
         } else {
-            // Per-item mode (original behavior)
             if (
                 cart.find((c) => c.name === selected && c.mode === "per-item")
             ) {
-                message.info("Request already added");
+                toast.info("Request already added");
                 return;
             }
 
@@ -74,7 +71,7 @@ export const useRequestCart = (REQUEST_CATALOG) => {
             ]);
         }
 
-        return true; // to reset select
+        return true;
     };
 
     const removeItem = (index) => setCart(cart.filter((_, i) => i !== index));
@@ -85,7 +82,6 @@ export const useRequestCart = (REQUEST_CATALOG) => {
         if (updated[index].mode === "bulk") {
             updated[index].bulkData = data;
         } else {
-            // For per-item mode, data contains { items, purpose }
             updated[index].items = data.items;
             updated[index].purpose = data.purpose;
         }

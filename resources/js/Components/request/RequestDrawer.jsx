@@ -1,19 +1,27 @@
-import React, { useState, useEffect } from "react";
-import {
-    Drawer,
-    Row,
-    Col,
-    Select,
-    Input,
-    InputNumber,
-    Button,
-    Typography,
-    Divider,
-} from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import React, { useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { PlusIcon, Trash2 } from "lucide-react";
 
-const { Text } = Typography;
-const { TextArea } = Input;
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetFooter,
+} from "@/components/ui/sheet";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import { Combobox } from "@/components/ui/combobox";
 
 const RequestDrawer = ({
     open,
@@ -23,208 +31,315 @@ const RequestDrawer = ({
     employees,
     locations,
 }) => {
-    const [rows, setRows] = useState([]);
-    const [purpose, setPurpose] = useState("");
+    const form = useForm({
+        defaultValues: {
+            purpose: "",
+            rows: [],
+        },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "rows",
+    });
 
     useEffect(() => {
-        setRows(item?.items || []);
-        setPurpose(item?.purpose || "");
+        if (item) {
+            form.reset({
+                purpose: item.purpose || "",
+                rows: item.items?.length
+                    ? item.items.map((r) => ({
+                          issued_to: r.issued_to || "",
+                          issued_to_other: r.issued_to_other || "",
+                          location: r.location || "",
+                          location_other: r.location_other || "",
+                          qty: r.qty || 1,
+                      }))
+                    : [],
+            });
+        }
     }, [item]);
 
-    const addRow = () =>
-        setRows([
-            ...rows,
-            {
-                issued_to: "",
-                issued_to_other: "",
-                location: "",
-                location_other: "",
-                qty: 1,
-            },
-        ]);
-
-    const removeRow = (i) => setRows(rows.filter((_, idx) => idx !== i));
-
-    const updateRow = (i, key, val) => {
-        const copy = [...rows];
-        copy[i][key] = val;
-        setRows(copy);
-    };
-
-    const save = () => {
-        const finalRows = rows.map((r) => ({
+    const onSubmit = (data) => {
+        const finalRows = data.rows.map((r) => ({
             issued_to:
                 r.issued_to === "Other" ? r.issued_to_other : r.issued_to,
+            issued_to_other: r.issued_to === "Other" ? r.issued_to_other : "",
             location: r.location === "Other" ? r.location_other : r.location,
+            location_other: r.location === "Other" ? r.location_other : "",
             qty: r.qty,
         }));
-        onSave({ items: finalRows, purpose });
+        onSave({ items: finalRows, purpose: data.purpose });
         onClose();
     };
 
-    const inputStyle = {
-        width: "100%",
-        height: 36,
-        borderColor: "#f0f0f0",
-        borderRadius: 6,
-    };
-    const selectStyle = { width: "100%", height: 36, borderRadius: 6 };
+    const employeeOptions = [
+        ...employees.map((emp) => ({
+            label: `${emp.emp_id} — ${emp.empname}`,
+            value: emp.emp_id,
+        })),
+        { label: "Other", value: "Other" },
+    ];
+
+    const locationOptions = [...locations, { label: "Other", value: "Other" }];
 
     return (
-        <Drawer
-            title={`Edit ${item?.name}`}
-            open={open}
-            onClose={onClose}
-            size={900}
-        >
-            {/* Purpose Field */}
-            <div style={{ marginBottom: 16 }}>
-                <Text strong>Purpose of Request</Text>
-                <TextArea
-                    placeholder="Enter purpose of request"
-                    value={purpose}
-                    onChange={(e) => setPurpose(e.target.value)}
-                    rows={3}
-                    style={{ marginTop: 8 }}
-                />
-            </div>
+        <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+            <SheetContent
+                side="right"
+                className="w-full sm:max-w-2xl overflow-y-auto"
+            >
+                <SheetHeader className="mb-4">
+                    <SheetTitle>Edit — {item?.name}</SheetTitle>
+                </SheetHeader>
 
-            <Divider />
-
-            {rows.map((row, i) => (
-                <div
-                    key={i}
-                    style={{
-                        marginBottom: 12,
-                        border: "1px solid #f0f0f0",
-                        padding: 8,
-                        borderRadius: 6,
-                    }}
-                >
-                    <Row gutter={8} align="middle">
-                        {/* Issued To */}
-                        <Col span={6}>
-                            <Text>Issued To</Text>
-                            {row.issued_to === "Other" ? (
-                                <Input
-                                    placeholder="Enter name"
-                                    value={row.issued_to_other}
-                                    style={inputStyle}
-                                    onChange={(e) =>
-                                        updateRow(
-                                            i,
-                                            "issued_to_other",
-                                            e.target.value
-                                        )
-                                    }
-                                />
-                            ) : (
-                                <Select
-                                    placeholder="Select Employee"
-                                    value={row.issued_to}
-                                    style={selectStyle}
-                                    onChange={(val) =>
-                                        updateRow(i, "issued_to", val)
-                                    }
-                                    showSearch
-                                    filterOption={(input, option) =>
-                                        (option?.label ?? "")
-                                            .toLowerCase()
-                                            .includes(input.toLowerCase())
-                                    }
-                                    options={[
-                                        ...employees.map((emp) => ({
-                                            label: `${emp.emp_id} - ${emp.empname}`,
-                                            value: emp.emp_id,
-                                        })),
-                                        { label: "Other", value: "Other" },
-                                    ]}
-                                />
-                            )}
-                        </Col>
-
-                        {/* Location */}
-                        <Col span={6}>
-                            <Text>Location</Text>
-                            {row.location === "Other" ? (
-                                <Input
-                                    placeholder="Enter location"
-                                    value={row.location_other}
-                                    style={inputStyle}
-                                    onChange={(e) =>
-                                        updateRow(
-                                            i,
-                                            "location_other",
-                                            e.target.value
-                                        )
-                                    }
-                                />
-                            ) : (
-                                <Select
-                                    placeholder="Select Location"
-                                    value={row.location}
-                                    style={selectStyle}
-                                    showSearch
-                                    onChange={(val) =>
-                                        updateRow(i, "location", val)
-                                    }
-                                    filterOption={(input, option) =>
-                                        (option?.label ?? "")
-                                            .toLowerCase()
-                                            .includes(input.toLowerCase())
-                                    }
-                                    options={[
-                                        ...locations,
-                                        { label: "Other", value: "Other" },
-                                    ]}
-                                />
-                            )}
-                        </Col>
-
-                        {/* Qty */}
-                        <Col span={4}>
-                            <Text>Qty</Text>
-                            <InputNumber
-                                min={1}
-                                value={row.qty}
-                                style={{ width: "100%", height: 36 }}
-                                onChange={(val) => updateRow(i, "qty", val)}
-                            />
-                        </Col>
-
-                        {/* Remove */}
-                        <Col span={4}>
-                            <Button
-                                danger
-                                style={{ width: "100%", marginTop: 22 }}
-                                onClick={() => removeRow(i)}
-                            >
-                                Remove
-                            </Button>
-                        </Col>
-                    </Row>
-                </div>
-            ))}
-
-            <Divider />
-
-            <Row gutter={8}>
-                <Col>
-                    <Button
-                        type="dashed"
-                        onClick={addRow}
-                        icon={<PlusOutlined />}
+                <Form {...form}>
+                    <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-6"
                     >
-                        Add Item
-                    </Button>
-                </Col>
-                <Col>
-                    <Button type="primary" onClick={save}>
-                        Save
-                    </Button>
-                </Col>
-            </Row>
-        </Drawer>
+                        {/* Purpose */}
+                        <FormField
+                            control={form.control}
+                            name="purpose"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Purpose of Request</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Enter purpose of request"
+                                            rows={3}
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <Separator />
+
+                        {/* Rows */}
+                        <div className="space-y-3">
+                            {fields.map((field, i) => {
+                                const issuedTo = form.watch(
+                                    `rows.${i}.issued_to`,
+                                );
+                                const location = form.watch(
+                                    `rows.${i}.location`,
+                                );
+
+                                return (
+                                    <div
+                                        key={field.id}
+                                        className="border rounded-lg p-4 space-y-4"
+                                    >
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {/* Issued To */}
+                                            <FormField
+                                                control={form.control}
+                                                name={`rows.${i}.issued_to`}
+                                                render={({ field: f }) => (
+                                                    <FormItem>
+                                                        <FormLabel>
+                                                            Issued To
+                                                        </FormLabel>
+                                                        <FormControl>
+                                                            <Combobox
+                                                                value={f.value}
+                                                                onChange={(
+                                                                    val,
+                                                                ) => {
+                                                                    f.onChange(
+                                                                        val,
+                                                                    );
+                                                                    if (
+                                                                        val !==
+                                                                        "Other"
+                                                                    ) {
+                                                                        form.setValue(
+                                                                            `rows.${i}.issued_to_other`,
+                                                                            "",
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                options={
+                                                                    employeeOptions
+                                                                }
+                                                                placeholder="Select Employee"
+                                                                style={{
+                                                                    height: 36,
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            {issuedTo === "Other" && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`rows.${i}.issued_to_other`}
+                                                    render={({ field: f }) => (
+                                                        <FormItem>
+                                                            <FormLabel>
+                                                                Enter Name
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Input
+                                                                    placeholder="Enter name"
+                                                                    {...f}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )}
+
+                                            {/* Location */}
+                                            <FormField
+                                                control={form.control}
+                                                name={`rows.${i}.location`}
+                                                render={({ field: f }) => (
+                                                    <FormItem>
+                                                        <FormLabel>
+                                                            Location
+                                                        </FormLabel>
+                                                        <FormControl>
+                                                            <Combobox
+                                                                value={f.value}
+                                                                onChange={(
+                                                                    val,
+                                                                ) => {
+                                                                    f.onChange(
+                                                                        val,
+                                                                    );
+                                                                    if (
+                                                                        val !==
+                                                                        "Other"
+                                                                    ) {
+                                                                        form.setValue(
+                                                                            `rows.${i}.location_other`,
+                                                                            "",
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                options={
+                                                                    locationOptions
+                                                                }
+                                                                placeholder="Select Location"
+                                                                style={{
+                                                                    height: 36,
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            {location === "Other" && (
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`rows.${i}.location_other`}
+                                                    render={({ field: f }) => (
+                                                        <FormItem>
+                                                            <FormLabel>
+                                                                Enter Location
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                <Input
+                                                                    placeholder="Enter location"
+                                                                    {...f}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )}
+
+                                            {/* Qty */}
+                                            <FormField
+                                                control={form.control}
+                                                name={`rows.${i}.qty`}
+                                                render={({ field: f }) => (
+                                                    <FormItem>
+                                                        <FormLabel>
+                                                            Qty
+                                                        </FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                min={1}
+                                                                {...f}
+                                                                onChange={(e) =>
+                                                                    f.onChange(
+                                                                        Number(
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                        ),
+                                                                    )
+                                                                }
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            className="gap-1"
+                                            onClick={() => remove(i)}
+                                        >
+                                            <Trash2 size={14} />
+                                            Remove Row
+                                        </Button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <Separator />
+
+                        <SheetFooter className="flex flex-row gap-2 justify-start">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() =>
+                                    append({
+                                        issued_to: "",
+                                        issued_to_other: "",
+                                        location: "",
+                                        location_other: "",
+                                        qty: 1,
+                                    })
+                                }
+                            >
+                                <PlusIcon size={14} />
+                                Add Row
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={onClose}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit">Save</Button>
+                        </SheetFooter>
+                    </form>
+                </Form>
+            </SheetContent>
+        </Sheet>
     );
 };
 

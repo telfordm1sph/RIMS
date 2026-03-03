@@ -4,7 +4,7 @@ namespace App\Repositories;
 
 use App\Models\RequestType;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class RequestTypeRepository
 {
@@ -18,21 +18,36 @@ class RequestTypeRepository
             ->orderBy('request_category')
             ->get()
             ->groupBy(function ($item) {
-                // Assuming category is part of request_category, otherwise adjust
                 return explode('-', $item->request_category)[0];
             })
             ->toArray();
     }
 
     /**
-     * Get all request types as flat array for table display
+     * Get paginated request types for table display with filters
      */
-    public function getAllForTable()
+    public function getAllForTable(int $perPage = 10, int $page = 1, array $filters = []): LengthAwarePaginator
     {
-        return RequestType::orderBy('id', 'desc')->get();
+        $query = RequestType::orderBy('id', 'desc');
+
+        // Apply filters if any
+        if (!empty($filters)) {
+            if (isset($filters['search'])) {
+                $search = $filters['search'];
+                $query->where(function ($q) use ($search) {
+                    $q->where('request_category', 'like', "%{$search}%")
+                        ->orWhere('request_name', 'like', "%{$search}%")
+                        ->orWhere('request_description', 'like', "%{$search}%");
+                });
+            }
+
+            if (isset($filters['status'])) {
+                $query->where('is_active', $filters['status'] === 'active' ? 1 : 0);
+            }
+        }
+
+        return $query->paginate($perPage, ['*'], 'page', $page);
     }
-
-
 
     /**
      * Get request types with their options for form display

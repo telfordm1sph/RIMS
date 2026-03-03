@@ -1,20 +1,35 @@
-import React, { useState, useEffect } from "react";
-import {
-    Drawer,
-    Row,
-    Col,
-    Select,
-    Input,
-    InputNumber,
-    Button,
-    Typography,
-    Divider,
-    Table,
-} from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import React, { useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { Trash2 } from "lucide-react";
 
-const { Text, Title } = Typography;
-const { TextArea } = Input;
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetFooter,
+} from "@/components/ui/sheet";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Combobox } from "@/components/ui/combobox";
 
 const BulkRequestDrawer = ({
     open,
@@ -24,18 +39,25 @@ const BulkRequestDrawer = ({
     employees,
     locations,
 }) => {
-    const [formData, setFormData] = useState({
-        issued_to: "",
-        issued_to_other: "",
-        location: "",
-        location_other: "",
-        purpose: "",
-        items: [],
+    const form = useForm({
+        defaultValues: {
+            issued_to: "",
+            issued_to_other: "",
+            location: "",
+            location_other: "",
+            purpose: "",
+            items: [],
+        },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "items",
     });
 
     useEffect(() => {
         if (item?.bulkData) {
-            setFormData({
+            form.reset({
                 issued_to: item.bulkData.issued_to || "",
                 issued_to_other: item.bulkData.issued_to_other || "",
                 location: item.bulkData.location || "",
@@ -46,256 +68,300 @@ const BulkRequestDrawer = ({
         }
     }, [item]);
 
-    const updateField = (field, value) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-    };
+    const watchedItems = form.watch("items");
+    const issuedTo = form.watch("issued_to");
+    const location = form.watch("location");
 
-    const addItem = (itemName) => {
-        if (!formData.items.find((ri) => ri.name === itemName)) {
-            setFormData((prev) => ({
-                ...prev,
-                items: [...prev.items, { name: itemName, qty: 1 }],
-            }));
-        }
-    };
+    const availableItems =
+        item?.allItems?.filter(
+            (i) => !watchedItems.find((ri) => ri.name === i),
+        ) || [];
 
-    const removeItem = (itemName) => {
-        setFormData((prev) => ({
-            ...prev,
-            items: prev.items.filter((ri) => ri.name !== itemName),
-        }));
-    };
-
-    const updateQty = (itemName, qty) => {
-        setFormData((prev) => ({
-            ...prev,
-            items: prev.items.map((ri) =>
-                ri.name === itemName ? { ...ri, qty } : ri
-            ),
-        }));
-    };
-
-    const save = () => {
-        const issuedTo = formData.issued_to;
-
+    const onSubmit = (data) => {
         const issuedToName =
-            formData.issued_to === "Other"
-                ? formData.issued_to_other
-                : employees.find((emp) => emp.emp_id === formData.issued_to)
+            data.issued_to === "Other"
+                ? data.issued_to_other
+                : employees.find((emp) => emp.emp_id === data.issued_to)
                       ?.empname || "";
 
-        const locationId = formData.location;
-
         const locationName =
-            formData.location === "Other"
-                ? formData.location_other
-                : locations.find((l) => l.value === formData.location)?.label ||
-                  "";
+            data.location === "Other"
+                ? data.location_other
+                : locations.find((l) => l.value === data.location)?.label || "";
 
-        const finalData = {
-            issued_to: issuedTo,
+        onSave({
+            issued_to: data.issued_to,
             issued_to_name: issuedToName,
-            location: locationId,
+            issued_to_other: data.issued_to_other,
+            location: data.location,
             location_name: locationName,
-            purpose: formData.purpose,
-            items: formData.items,
-        };
-
-        onSave(finalData);
+            location_other: data.location_other,
+            purpose: data.purpose,
+            items: data.items,
+        });
         onClose();
     };
 
-    const columns = [
-        {
-            title: "Item Name",
-            dataIndex: "name",
-            key: "name",
-        },
-        {
-            title: "Quantity",
-            dataIndex: "qty",
-            key: "qty",
-            width: 150,
-            render: (qty, record) => (
-                <InputNumber
-                    min={1}
-                    value={qty}
-                    onChange={(val) => updateQty(record.name, val)}
-                    style={{ width: "100%" }}
-                />
-            ),
-        },
-        {
-            title: "Action",
-            key: "action",
-            width: 100,
-            render: (_, record) => (
-                <Button
-                    danger
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    onClick={() => removeItem(record.name)}
-                >
-                    Remove
-                </Button>
-            ),
-        },
+    const employeeOptions = [
+        ...employees.map((emp) => ({
+            label: `${emp.emp_id} — ${emp.empname}`,
+            value: emp.emp_id,
+        })),
+        { label: "Other", value: "Other" },
     ];
 
-    const availableItems = item?.category
-        ? item.allItems?.filter(
-              (i) => !formData.items.find((ri) => ri.name === i)
-          ) || []
-        : [];
+    const locationOptions = [...locations, { label: "Other", value: "Other" }];
+
+    const addableItemOptions = availableItems.map((name) => ({
+        label: name,
+        value: name,
+    }));
 
     return (
-        <Drawer
-            title={`Bulk Request - ${item?.category}`}
-            open={open}
-            onClose={onClose}
-            size={900}
-        >
-            <div style={{ marginBottom: 24 }}>
-                <Title level={5}>Request Details</Title>
+        <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+            <SheetContent
+                side="right"
+                className="w-full sm:max-w-3xl overflow-y-auto"
+            >
+                <SheetHeader className="mb-4">
+                    <SheetTitle>Bulk Request — {item?.category}</SheetTitle>
+                </SheetHeader>
 
-                <Row gutter={16} style={{ marginBottom: 16 }}>
-                    <Col span={12}>
-                        <Text>Issued To</Text>
-                        {formData.issued_to === "Other" ? (
-                            <Input
-                                placeholder="Enter name"
-                                value={formData.issued_to_other}
-                                onChange={(e) =>
-                                    updateField(
-                                        "issued_to_other",
-                                        e.target.value
-                                    )
-                                }
-                                style={{ marginTop: 8 }}
+                <Form {...form}>
+                    <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-6"
+                    >
+                        {/* Request Details */}
+                        <div>
+                            <p className="text-sm font-semibold mb-3">
+                                Request Details
+                            </p>
+
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                {/* Issued To */}
+                                <FormField
+                                    control={form.control}
+                                    name="issued_to"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Issued To</FormLabel>
+                                            <FormControl>
+                                                <Combobox
+                                                    value={field.value}
+                                                    onChange={(val) => {
+                                                        field.onChange(val);
+                                                        if (val !== "Other") {
+                                                            form.setValue(
+                                                                "issued_to_other",
+                                                                "",
+                                                            );
+                                                        }
+                                                    }}
+                                                    options={employeeOptions}
+                                                    placeholder="Select Employee"
+                                                    style={{ height: 36 }}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                {issuedTo === "Other" && (
+                                    <FormField
+                                        control={form.control}
+                                        name="issued_to_other"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>
+                                                    Enter Name
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        placeholder="Enter name"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+
+                                {/* Location */}
+                                <FormField
+                                    control={form.control}
+                                    name="location"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Location</FormLabel>
+                                            <FormControl>
+                                                <Combobox
+                                                    value={field.value}
+                                                    onChange={(val) => {
+                                                        field.onChange(val);
+                                                        if (val !== "Other") {
+                                                            form.setValue(
+                                                                "location_other",
+                                                                "",
+                                                            );
+                                                        }
+                                                    }}
+                                                    options={locationOptions}
+                                                    placeholder="Select Location"
+                                                    style={{ height: 36 }}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                {location === "Other" && (
+                                    <FormField
+                                        control={form.control}
+                                        name="location_other"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>
+                                                    Enter Location
+                                                </FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        placeholder="Enter location"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Purpose */}
+                            <FormField
+                                control={form.control}
+                                name="purpose"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Purpose</FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                placeholder="Enter purpose of request"
+                                                rows={3}
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
                             />
-                        ) : (
-                            <Select
-                                placeholder="Select Employee"
-                                value={formData.issued_to}
-                                onChange={(val) =>
-                                    updateField("issued_to", val)
-                                }
-                                showSearch
-                                filterOption={(input, option) =>
-                                    (option?.label ?? "")
-                                        .toLowerCase()
-                                        .includes(input.toLowerCase())
-                                }
-                                options={[
-                                    ...employees.map((emp) => ({
-                                        label: `${emp.emp_id} - ${emp.empname}`,
-                                        value: emp.emp_id,
-                                    })),
-                                    { label: "Other", value: "Other" },
-                                ]}
-                                style={{ width: "100%", marginTop: 8 }}
+                        </div>
+
+                        <Separator />
+
+                        {/* Select Items */}
+                        <div>
+                            <p className="text-sm font-semibold mb-3">
+                                Select Items
+                            </p>
+                            <Combobox
+                                value=""
+                                onChange={(val) => {
+                                    if (val) append({ name: val, qty: 1 });
+                                }}
+                                options={addableItemOptions}
+                                placeholder="Add items to this bulk request"
+                                clearable={false}
+                                style={{ height: 36 }}
                             />
+                        </div>
+
+                        {/* Items Table */}
+                        {fields.length > 0 && (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Item Name</TableHead>
+                                        <TableHead className="w-36">
+                                            Quantity
+                                        </TableHead>
+                                        <TableHead className="w-28">
+                                            Action
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {fields.map((field, i) => (
+                                        <TableRow key={field.id}>
+                                            <TableCell className="font-medium">
+                                                {field.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`items.${i}.qty`}
+                                                    render={({ field: f }) => (
+                                                        <FormItem>
+                                                            <FormControl>
+                                                                <Input
+                                                                    type="number"
+                                                                    min={1}
+                                                                    className="w-full"
+                                                                    {...f}
+                                                                    onChange={(
+                                                                        e,
+                                                                    ) =>
+                                                                        f.onChange(
+                                                                            Number(
+                                                                                e
+                                                                                    .target
+                                                                                    .value,
+                                                                            ),
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="gap-1"
+                                                    onClick={() => remove(i)}
+                                                >
+                                                    <Trash2 size={14} />
+                                                    Remove
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         )}
-                    </Col>
 
-                    <Col span={12}>
-                        <Text>Location</Text>
-                        {formData.location === "Other" ? (
-                            <Input
-                                placeholder="Enter location"
-                                value={formData.location_other}
-                                onChange={(e) =>
-                                    updateField(
-                                        "location_other",
-                                        e.target.value
-                                    )
-                                }
-                                style={{ marginTop: 8 }}
-                            />
-                        ) : (
-                            <Select
-                                placeholder="Select Location"
-                                value={formData.location}
-                                onChange={(val) => updateField("location", val)}
-                                showSearch
-                                filterOption={(input, option) =>
-                                    (option?.label ?? "")
-                                        .toLowerCase()
-                                        .includes(input.toLowerCase())
-                                }
-                                options={[
-                                    ...locations,
-                                    { label: "Other", value: "Other" },
-                                ]}
-                                style={{ width: "100%", marginTop: 8 }}
-                            />
-                        )}
-                    </Col>
-                </Row>
+                        <Separator />
 
-                <div style={{ marginBottom: 16 }}>
-                    <Text>Purpose</Text>
-                    <TextArea
-                        placeholder="Enter purpose of request"
-                        value={formData.purpose}
-                        onChange={(e) => updateField("purpose", e.target.value)}
-                        rows={3}
-                        style={{ marginTop: 8 }}
-                    />
-                </div>
-            </div>
-
-            <Divider />
-
-            <div style={{ marginBottom: 16 }}>
-                <Title level={5}>Select Items</Title>
-                <Select
-                    placeholder="Add items to this bulk request"
-                    style={{ width: "100%" }}
-                    onChange={(val) => {
-                        addItem(val);
-                    }}
-                    value={null}
-                    showSearch
-                    filterOption={(input, option) =>
-                        (option?.label ?? "")
-                            .toLowerCase()
-                            .includes(input.toLowerCase())
-                    }
-                >
-                    {availableItems.map((itemName) => (
-                        <Select.Option
-                            key={itemName}
-                            value={itemName}
-                            label={itemName}
-                        >
-                            {itemName}
-                        </Select.Option>
-                    ))}
-                </Select>
-            </div>
-
-            <Table
-                columns={columns}
-                dataSource={formData.items}
-                rowKey="name"
-                pagination={false}
-                size="small"
-            />
-
-            <Divider />
-
-            <Row gutter={8}>
-                <Col>
-                    <Button onClick={onClose}>Cancel</Button>
-                </Col>
-                <Col>
-                    <Button type="primary" onClick={save}>
-                        Save
-                    </Button>
-                </Col>
-            </Row>
-        </Drawer>
+                        <SheetFooter className="flex flex-row gap-2 justify-start">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={onClose}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit">Save</Button>
+                        </SheetFooter>
+                    </form>
+                </Form>
+            </SheetContent>
+        </Sheet>
     );
 };
 

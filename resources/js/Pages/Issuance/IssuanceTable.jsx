@@ -1,23 +1,32 @@
+import React, { useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import DetailsDrawer from "@/Components/drawer/DetailsDrawer";
 import { useDrawer } from "@/Hooks/useDrawer";
 import { useApiTableConfig } from "@/Hooks/useApiTableConfig";
-import { Table, Card, Button, Tag, message } from "antd";
-import { EyeOutlined, LikeOutlined } from "@ant-design/icons";
+import { usePage } from "@inertiajs/react";
+import SkeletonTable from "@/Components/skeleton/SkeletonTable";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye, ThumbsUp } from "lucide-react";
 import dayjs from "dayjs";
 import axios from "axios";
-import SkeletonTable from "@/Components/skeleton/SkeletonTable";
-import { useState } from "react";
-import { usePage } from "@inertiajs/react";
+import TablePagination from "@/Components/TablePagination";
+import { toast } from "sonner";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
-const IssuanceTable = () => {
+export default function IssuanceTable() {
     const { drawerOpen, selectedItem, openDrawer, closeDrawer } = useDrawer();
     const [ackLoading, setAckLoading] = useState(false);
     const { emp_data } = usePage().props;
 
-    // ==============================
-    // Auth Helpers
-    // ==============================
     const isHardwareUser = (record) =>
         (record?.hardware_users || []).some(
             (hu) => hu.user_id === emp_data?.emp_id,
@@ -26,31 +35,23 @@ const IssuanceTable = () => {
     const canAcknowledge = (record) =>
         record?.acknowledgement?.status === 0 && isHardwareUser(record);
 
-    // ==============================
-    // Acknowledge Handler
-    // ==============================
     const handleAcknowledge = async (record) => {
         if (!record) return;
-
         if (!isHardwareUser(record)) {
-            message.error(
-                "You are not authorized to acknowledge this issuance.",
-            );
+            toast.error("You are not authorized to acknowledge this issuance.");
             return;
         }
-
         try {
             setAckLoading(true);
             await axios.put(route("issuance.acknowledge", record.id), {
                 employee_id: emp_data?.emp_id,
             });
-
-            message.success("Acknowledged successfully");
+            toast.success("Acknowledged successfully");
             closeDrawer();
             await fetchData();
         } catch (error) {
-            console.error("Acknowledge failed:", error);
-            message.error(
+            console.error(error);
+            toast.error(
                 error?.response?.data?.message || "Failed to acknowledge",
             );
         } finally {
@@ -58,21 +59,13 @@ const IssuanceTable = () => {
         }
     };
 
-    // ==============================
-    // Fetch Full Details
-    // ==============================
     const fetchDetails = async (record) => {
         try {
             const { data: res } = await axios.get(
-                route("hardware.full.details", {
-                    hardwareId: record.hostname,
-                }),
+                route("hardware.full.details", { hardwareId: record.hostname }),
             );
-
             if (!res?.success) return { fieldGroups: [] };
-
             const hw = res.data;
-            console.log(hw);
 
             const partsArray = (hw.parts || []).map((part) => ({
                 id: part.id,
@@ -126,18 +119,9 @@ const IssuanceTable = () => {
                             label: "Department",
                             value: hw.department_name || "-",
                         },
-                        {
-                            label: "Location",
-                            value: hw.location_name || "-",
-                        },
-                        {
-                            label: "Product Line",
-                            value: hw.pl_name || "-",
-                        },
-                        {
-                            label: "Station",
-                            value: hw.station_name || "-",
-                        },
+                        { label: "Location", value: hw.location_name || "-" },
+                        { label: "Product Line", value: hw.pl_name || "-" },
+                        { label: "Station", value: hw.station_name || "-" },
                     ],
                 },
                 { title: "Parts", subGroups: partsArray },
@@ -156,166 +140,187 @@ const IssuanceTable = () => {
         openDrawer({ ...record, ...details });
     };
 
-    // ==============================
-    // Column Definitions
-    // ==============================
     const columnDefinitions = [
+        { key: "issuance_number", label: "Issuance No.", sortable: true },
+        { key: "request_number", label: "Request No.", sortable: true },
+        { key: "hostname", label: "Hostname", sortable: true },
+        { key: "location_name", label: "Location", sortable: true },
         {
-            title: "Issuance No.",
-            dataIndex: "issuance_number",
-            key: "issuance_number",
-            sorter: true,
-        },
-        {
-            title: "Request No.",
-            dataIndex: "request_number",
-            key: "request_number",
-            sorter: true,
-        },
-        {
-            title: "Hostname",
-            dataIndex: "hostname",
-            key: "hostname",
-            sorter: true,
-        },
-        {
-            title: "Location",
-            dataIndex: "location_name",
-            key: "location_name",
-            sorter: true,
-        },
-        {
-            title: "Assigned Users",
             key: "hardware_users",
-            render: (_, record) => {
+            label: "Assigned Users",
+            render: (record) => {
                 const users = record.hardware_users || [];
                 if (!users.length)
-                    return <span className="text-gray-400">-</span>;
+                    return <span className="text-muted-foreground">-</span>;
                 return (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap gap-1">
                         {users.map((hu) => (
-                            <Tag key={hu.user_id} color="blue">
+                            <Badge key={hu.user_id} variant="secondary">
                                 {hu.user_name}
-                            </Tag>
+                            </Badge>
                         ))}
                     </div>
                 );
             },
         },
+        { key: "remarks", label: "Remarks" },
         {
-            title: "Remarks",
-            dataIndex: "remarks",
-            key: "remarks",
-        },
-        {
-            title: "Issued At",
-            dataIndex: "created_at",
             key: "created_at",
-            sorter: true,
-            render: (value) =>
-                value ? dayjs(value).format("MMM D, YYYY hh:mm A") : "-",
+            label: "Issued At",
+            sortable: true,
+            render: (record) =>
+                record.created_at
+                    ? dayjs(record.created_at).format("MMM D, YYYY hh:mm A")
+                    : "-",
         },
+        { key: "creator_name", label: "Issued By", sortable: true },
         {
-            title: "Issued By",
-            dataIndex: "creator_name",
-            key: "creator_name",
-            sorter: true,
-        },
-        {
-            title: "Status",
             key: "acknowledgement_status",
-            render: (_, record) => (
-                <Tag color={record.acknowledgement?.status_color || "gold"}>
-                    {record.acknowledgement?.status_label || "Pending"}
-                </Tag>
-            ),
+            label: "Status",
+            render: (record) => {
+                const color = record.acknowledgement?.status_color || "blue";
+                const label = record.acknowledgement?.status_label || "Pending";
+                const colorMap = {
+                    blue: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+                    lime: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+                    yellow: "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
+                    red: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300",
+                    purple: "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+                };
+                return (
+                    <Badge
+                        className={
+                            colorMap[color] || "bg-gray-50 text-gray-700"
+                        }
+                    >
+                        {label}
+                    </Badge>
+                );
+            },
         },
         {
-            title: "Acknowledged By",
-            key: "acknowledged_by_name",
-            render: (_, record) =>
-                record.acknowledgement?.status === 1
-                    ? record.acknowledgement?.acknowledged_by_name || "-"
-                    : "-",
-        },
-        {
-            title: "Acknowledged At",
-            key: "acknowledged_at",
-            dataIndex: ["acknowledgement", "acknowledged_at"],
-            sorter: true,
-            render: (value, record) =>
-                record.acknowledgement?.status === 1 && value
-                    ? dayjs(value).format("MMM D, YYYY hh:mm A")
-                    : "-",
-        },
-        {
-            title: "Actions",
             key: "actions",
-            width: 120,
-            fixed: "right",
-            render: (_, record) => {
+            label: "Actions",
+            render: (record) => {
                 const acknowledgeAllowed = canAcknowledge(record);
                 return (
                     <Button
-                        color={acknowledgeAllowed ? "primary" : "default"}
-                        variant="filled"
-                        icon={
-                            acknowledgeAllowed ? (
-                                <LikeOutlined />
-                            ) : (
-                                <EyeOutlined />
-                            )
-                        }
+                        variant={acknowledgeAllowed ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0"
                         onClick={() => handleView(record)}
+                        disabled={ackLoading}
                     >
-                        {acknowledgeAllowed ? "Acknowledge" : "View"}
+                        {acknowledgeAllowed ? (
+                            <ThumbsUp size={15} />
+                        ) : (
+                            <Eye size={15} />
+                        )}
                     </Button>
                 );
             },
         },
     ];
 
-    // ==============================
-    // API Table Hook
-    // ==============================
-    const {
-        data,
-        loading,
-        paginationConfig,
-        columns,
-        handleTableChange,
-        fetchData,
-    } = useApiTableConfig(route("issuance.list"), columnDefinitions);
-    console.log(data);
+    const { data, loading, paginationConfig, fetchData } = useApiTableConfig(
+        route("issuance.list"),
+        columnDefinitions,
+    );
 
     const showAcknowledgeButton =
         selectedItem?.acknowledgement?.status === 0 &&
         isHardwareUser(selectedItem);
 
-    // ==============================
-    // Render
-    // ==============================
     return (
         <AuthenticatedLayout>
-            <Card title="Issuance Table" style={{ margin: "24px" }}>
-                {loading ? (
-                    <SkeletonTable columns={5} rows={5} />
-                ) : (
-                    <Table
-                        columns={columns}
-                        dataSource={data}
-                        rowKey="id"
-                        pagination={paginationConfig}
-                        onChange={handleTableChange}
-                        scroll={{ x: true }}
-                    />
-                )}
+            <Card className="shadow-sm border-border/60 flex flex-col overflow-hidden">
+                <CardHeader className="px-4 py-3 flex-shrink-0 border-b">
+                    <CardTitle className="text-base">Issuance Table</CardTitle>
+                </CardHeader>
+
+                <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+                    {loading ? (
+                        <div className="p-4">
+                            <SkeletonTable columns={5} rows={5} />
+                        </div>
+                    ) : (
+                        <>
+                            {/* Scrollable table area */}
+                            <div className="flex-1 overflow-auto min-h-0">
+                                <Table>
+                                    <TableHeader className="sticky top-0 z-10 bg-background shadow-[0_1px_0_0_hsl(var(--border))]">
+                                        <TableRow>
+                                            {columnDefinitions.map((col) => (
+                                                <TableHead
+                                                    key={col.key}
+                                                    className="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    {col.label}
+                                                </TableHead>
+                                            ))}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {data.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell
+                                                    colSpan={
+                                                        columnDefinitions.length
+                                                    }
+                                                    className="h-32 text-center text-muted-foreground text-sm"
+                                                >
+                                                    No records found.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            data.map((record) => (
+                                                <TableRow
+                                                    key={record.id}
+                                                    className="hover:bg-muted/40 transition-colors"
+                                                >
+                                                    {columnDefinitions.map(
+                                                        (col) => (
+                                                            <TableCell
+                                                                key={col.key}
+                                                                className="text-sm py-2"
+                                                            >
+                                                                {col.render
+                                                                    ? col.render(
+                                                                          record,
+                                                                      )
+                                                                    : (record[
+                                                                          col
+                                                                              .key
+                                                                      ] ?? "-")}
+                                                            </TableCell>
+                                                        ),
+                                                    )}
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* Pagination pinned to bottom */}
+                            <div className="flex-shrink-0 border-t px-4 py-2 bg-background">
+                                <TablePagination
+                                    pagination={paginationConfig}
+                                    onChange={(page) => fetchData(page)}
+                                    onChangePerPage={(perPage) =>
+                                        fetchData(1, perPage)
+                                    }
+                                />
+                            </div>
+                        </>
+                    )}
+                </CardContent>
             </Card>
 
             <DetailsDrawer
                 visible={drawerOpen}
                 fieldGroups={selectedItem?.fieldGroups || []}
-                issuanceData={selectedItem} // pass full record
+                issuanceData={selectedItem}
                 loading={false}
                 onClose={closeDrawer}
                 showAcknowledge={showAcknowledgeButton}
@@ -324,6 +329,4 @@ const IssuanceTable = () => {
             />
         </AuthenticatedLayout>
     );
-};
-
-export default IssuanceTable;
+}

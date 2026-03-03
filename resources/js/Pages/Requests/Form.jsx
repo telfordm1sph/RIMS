@@ -1,9 +1,8 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-
-import { Row, Col, Layout, Radio } from "antd";
-const { Content } = Layout;
+import { usePage } from "@inertiajs/react";
+import { Package, Layers } from "lucide-react";
 
 import { useRequestCart } from "@/Hooks/useRequestCart";
 import RequestPicker from "@/Components/request/RequestPicker";
@@ -11,8 +10,7 @@ import Cart from "@/Components/request/Cart";
 import Summary from "@/Components/request/Summary";
 import RequestDrawer from "@/Components/request/RequestDrawer";
 import BulkRequestDrawer from "@/Components/request/BulkRequestDrawer";
-import { usePage } from "@inertiajs/react";
-import { Layers, Package } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const Form = () => {
     const { emp_data } = usePage().props;
@@ -29,7 +27,6 @@ const Form = () => {
             try {
                 const res = await axios.get(route("request-types.list"));
                 setRequestTypes(res.data);
-                console.log(res.data);
             } catch (err) {
                 console.error("Error fetching request types:", err);
             }
@@ -39,7 +36,6 @@ const Form = () => {
         const fetchEmployees = async (emp_id) => {
             try {
                 const res = await axios.get(route("staff.list", emp_id));
-                console.log("Staff", res.data);
                 setEmployees(res.data.employees || []);
             } catch (err) {
                 console.error(err);
@@ -50,12 +46,11 @@ const Form = () => {
         const fetchLocationLists = async () => {
             try {
                 const res = await axios.get(route("locations.list"));
-                console.log("Location", res.data);
                 setLocationLists(
                     res.data.map((loc) => ({
                         label: loc.location_name,
                         value: loc.id,
-                    }))
+                    })),
                 );
             } catch (err) {
                 console.error(err);
@@ -81,43 +76,27 @@ const Form = () => {
 
     return (
         <AuthenticatedLayout>
-            <Content>
-                <div style={{ marginBottom: 16 }}>
-                    <Radio.Group
-                        value={requestMode}
-                        onChange={(e) => setRequestMode(e.target.value)}
-                        buttonStyle="solid"
-                    >
-                        <Radio.Button value="per-item">
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                }}
-                            >
-                                <Package size={16} />
-                                <span>Per Item</span>
-                            </div>
-                        </Radio.Button>
+            <div className="p-4 space-y-4">
+                {/* Mode Toggle */}
+                <ToggleGroup
+                    type="single"
+                    value={requestMode}
+                    onValueChange={(val) => val && setRequestMode(val)}
+                    className="justify-start"
+                >
+                    <ToggleGroupItem value="per-item" className="gap-2">
+                        <Package size={16} />
+                        Per Item
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="bulk" className="gap-2">
+                        <Layers size={16} />
+                        Bulk
+                    </ToggleGroupItem>
+                </ToggleGroup>
 
-                        <Radio.Button value="bulk">
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                }}
-                            >
-                                <Layers size={16} />
-                                <span>Bulk</span>
-                            </div>
-                        </Radio.Button>
-                    </Radio.Group>
-                </div>
-
-                <Row gutter={24}>
-                    <Col span={14}>
+                {/* Main Grid */}
+                <div className="grid grid-cols-12 gap-6">
+                    <div className="col-span-8 space-y-4">
                         <RequestPicker
                             catalog={requestTypes}
                             selectedRequest={selectedRequest}
@@ -130,36 +109,37 @@ const Form = () => {
                             onEdit={openDrawer}
                             onRemove={removeItem}
                         />
-                    </Col>
-                    <Col span={10}>
+                    </div>
+                    <div className="col-span-4">
                         <Summary cart={cart} />
-                    </Col>
-                </Row>
+                    </div>
+                </div>
+            </div>
 
-                {activeIndex !== null && (
-                    <>
-                        {cart[activeIndex]?.mode === "bulk" ? (
-                            <BulkRequestDrawer
-                                open={drawerOpen}
-                                onClose={closeDrawer}
-                                item={cart[activeIndex]}
-                                onSave={(data) => updateItem(activeIndex, data)}
-                                employees={employees}
-                                locations={locationLists}
-                            />
-                        ) : (
-                            <RequestDrawer
-                                open={drawerOpen}
-                                onClose={closeDrawer}
-                                item={cart[activeIndex]}
-                                onSave={(data) => updateItem(activeIndex, data)}
-                                employees={employees}
-                                locations={locationLists}
-                            />
-                        )}
-                    </>
-                )}
-            </Content>
+            {/* Drawers */}
+            {activeIndex !== null && (
+                <>
+                    {cart[activeIndex]?.mode === "bulk" ? (
+                        <BulkRequestDrawer
+                            open={drawerOpen}
+                            onClose={closeDrawer}
+                            item={cart[activeIndex]}
+                            onSave={(data) => updateItem(activeIndex, data)}
+                            employees={employees}
+                            locations={locationLists}
+                        />
+                    ) : (
+                        <RequestDrawer
+                            open={drawerOpen}
+                            onClose={closeDrawer}
+                            item={cart[activeIndex]}
+                            onSave={(data) => updateItem(activeIndex, data)}
+                            employees={employees}
+                            locations={locationLists}
+                        />
+                    )}
+                </>
+            )}
         </AuthenticatedLayout>
     );
 };

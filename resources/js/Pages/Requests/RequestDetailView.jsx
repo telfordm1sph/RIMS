@@ -1,38 +1,46 @@
 import React, { useState } from "react";
 import {
     Card,
-    Descriptions,
-    Table,
-    Tag,
-    Typography,
-    Button,
-    Space,
-    message,
-} from "antd";
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
-    ArrowLeftOutlined,
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    StopOutlined,
-    SendOutlined,
-} from "@ant-design/icons";
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
+import {
+    ArrowLeft,
+    CheckCircle,
+    XCircle,
+    Ban,
+    Send,
+    Loader2,
+} from "lucide-react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { usePage, router } from "@inertiajs/react";
 import dayjs from "dayjs";
-import ActionRemarksModal from "../../Components/request/ActionRemarksModal";
-import IssueDrawer from "../../Components/request/IssueDrawer";
-
-const { Title } = Typography;
+import { cn } from "@/lib/utils";
+import ActionRemarksModal from "@/Components/request/ActionRemarksModal";
+import IssueDrawer from "@/Components/request/IssueDrawer";
 
 const RequestDetailView = () => {
     const { request, actions } = usePage().props;
+    console.log(request);
 
     // Modal & drawer state
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
-    const [remarks, setRemarks] = useState("");
 
     const handleBack = () => {
         const appName = window.location.pathname.split("/")[1];
@@ -41,292 +49,360 @@ const RequestDetailView = () => {
 
     const handleIssueItem = (item) => {
         setSelectedItem(item);
-        setIsDrawerVisible(true);
+        setIsDrawerOpen(true);
     };
 
     const itemColumns = [
-        { title: "ID", dataIndex: "id", key: "id", width: 60 },
-        { title: "Category", dataIndex: "category", key: "category" },
-        {
-            title: "Type of Request",
-            dataIndex: "type_of_request",
-            key: "type_of_request",
-        },
-        {
-            title: "Request Mode",
-            dataIndex: "request_mode",
-            key: "request_mode",
-            render: (mode) => (
-                <Tag color={mode === "bulk" ? "blue" : "green"}>
-                    {mode?.toUpperCase()}
-                </Tag>
-            ),
-        },
-        {
-            title: "Issued To",
-            dataIndex: "issued_to_name",
-            key: "issued_to_name",
-        },
-        { title: "Location", dataIndex: "location_name", key: "location_name" },
-        {
-            title: "Quantity",
-            dataIndex: "quantity",
-            key: "quantity",
-            align: "center",
-        },
-        {
-            title: "Purpose of Request",
-            dataIndex: "purpose_of_request",
-            key: "purpose_of_request",
-        },
-        {
-            title: "Item Status",
-            key: "item_status",
-            align: "center",
-            render: (_, record) => (
-                <Tag color={record.item_status_color}>
-                    {record.item_status_label}
-                </Tag>
-            ),
-        },
-        {
-            title: "Actions",
-            key: "actions",
-            align: "center",
-            width: 120,
-            render: (_, record) => {
-                // Only show ISSUE button if:
-                // 1. User has ISSUE permission
-                // 2. Request status is approved (status 3)
-                // 3. Item hasn't been issued yet (adjust based on your item_status)
-                const canIssue =
-                    actions?.includes("ISSUE") &&
-                    request.status === 3 &&
-                    record.item_status === 1; // Adjust this based on your status values
-
-                if (!canIssue) {
-                    return <span style={{ color: "#999" }}>-</span>;
-                }
-
-                return (
-                    <Button
-                        type="primary"
-                        size="small"
-                        icon={<SendOutlined />}
-                        onClick={() => handleIssueItem(record)}
-                    >
-                        Issue
-                    </Button>
-                );
-            },
-        },
+        { key: "id", label: "ID" },
+        { key: "category", label: "Category" },
+        { key: "type_of_request", label: "Type of Request" },
+        { key: "request_mode", label: "Request Mode" },
+        { key: "issued_to_name", label: "Issued To" },
+        { key: "location_name", label: "Location" },
+        { key: "quantity", label: "Quantity" },
+        { key: "purpose_of_request", label: "Purpose" },
+        { key: "item_status", label: "Item Status" },
+        { key: "actions", label: "Actions" },
     ];
+
+    const getStatusBadgeClass = (color) => {
+        const colorClasses = {
+            gold: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
+            green: "bg-green-100 text-green-800 border-green-200 hover:bg-green-100",
+            blue: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100",
+            red: "bg-red-100 text-red-800 border-red-200 hover:bg-red-100",
+            lime: "bg-lime-100 text-lime-800 border-lime-200 hover:bg-lime-100",
+            orange: "bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100",
+            default:
+                "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-100",
+        };
+        return colorClasses[color] || colorClasses.default;
+    };
+
+    const getModeBadgeClass = (mode) => {
+        return mode === "bulk"
+            ? "bg-blue-100 text-blue-800 border-blue-200"
+            : "bg-green-100 text-green-800 border-green-200";
+    };
 
     const availableActionConfig = {
         APPROVE: {
             label: "Approve",
-            icon: <CheckCircleOutlined />,
-            type: "primary",
+            icon: CheckCircle,
+            variant: "default",
+            className: "bg-green-600 hover:bg-green-700",
         },
         DISAPPROVE: {
             label: "Disapprove",
-            icon: <CloseCircleOutlined />,
-            type: "primary",
-            danger: true,
+            icon: XCircle,
+            variant: "destructive",
         },
         ONGOING: {
             label: "Ongoing",
-            icon: <CheckCircleOutlined />,
-            type: "default",
-            style: { color: "orange", borderColor: "orange" },
+            icon: Loader2,
+            variant: "outline",
+            className: "text-orange-600 border-orange-200 hover:bg-orange-50",
         },
         DONE: {
             label: "Done",
-            icon: <CheckCircleOutlined />,
-            type: "primary",
+            icon: CheckCircle,
+            variant: "default",
+            className: "bg-blue-600 hover:bg-blue-700",
         },
         ACKNOWLEDGE: {
             label: "Acknowledge",
-            icon: <CheckCircleOutlined />,
-            type: "primary",
+            icon: CheckCircle,
+            variant: "default",
+            className: "bg-purple-600 hover:bg-purple-700",
         },
         CANCEL: {
             label: "Cancel",
-            icon: <StopOutlined />,
-            type: "primary",
-            danger: true,
+            icon: Ban,
+            variant: "destructive",
         },
     };
 
     const handleActionClick = (key) => {
         if (["APPROVE", "DISAPPROVE"].includes(key)) {
             setSelectedAction(key);
-            setRemarks("");
-            setIsModalVisible(true);
-        } else {
-            console.log("Action clicked:", key);
+            setIsModalOpen(true);
         }
     };
 
-    const handleModalOk = async ({ action, remarks }) => {
-        if (!remarks?.trim()) {
-            message.error("Please enter remarks.");
-            return;
-        }
-
-        const payload = {
-            request_number: request.request_number,
-            action,
-            remarks,
-        };
-
-        try {
-            const res = await axios.post(route("request.action"), payload);
-
-            if (res.data.success) {
-                message.success(res.data.message);
-                window.location.reload();
-                setIsModalVisible(false);
-            } else {
-                message.error(res.data.message);
-            }
-        } catch (err) {
-            message.error("Failed to update Request.");
-        }
+    const handleModalClose = () => {
+        setIsModalOpen(false);
+        setSelectedAction(null);
     };
-
-    const handleModalCancel = () => setIsModalVisible(false);
 
     const handleDrawerClose = () => {
-        setIsDrawerVisible(false);
+        setIsDrawerOpen(false);
         setSelectedItem(null);
     };
 
-    const handleIssueSuccess = () => {
-        window.location.reload();
-    };
-
-    // Filter actions - remove ISSUE from top-level actions since it's in the table
+    // Filter actions - remove ISSUE and VIEW from top-level actions
     const displayActions =
         actions?.filter((a) => {
             const key = a.toUpperCase();
-            // Don't show VIEW or ISSUE action as buttons at the top
             return key !== "VIEW" && key !== "ISSUE";
         }) || [];
 
     return (
         <AuthenticatedLayout>
-            <div style={{ padding: "24px" }}>
+            <div className="p-6 space-y-6">
                 {/* Back Button */}
-                <Space style={{ marginBottom: "24px" }}>
-                    <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
-                        Back to Requests
-                    </Button>
-                </Space>
-
-                {/* Title + Actions */}
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: "24px",
-                    }}
+                <Button
+                    variant="ghost"
+                    onClick={handleBack}
+                    className="flex items-center gap-2 -ml-2"
                 >
-                    <Title level={2} style={{ margin: 0 }}>
-                        Request Details
-                    </Title>
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Requests
+                </Button>
+
+                {/* Header with Actions */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">
+                            Request Details
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            View and manage request information
+                        </p>
+                    </div>
                     {displayActions.length > 0 && (
-                        <Space>
+                        <div className="flex flex-wrap gap-2">
                             {displayActions.map((a) => {
                                 const key = a.toUpperCase();
                                 const cfg = availableActionConfig[key];
                                 if (!cfg) return null;
+                                const Icon = cfg.icon;
                                 return (
                                     <Button
                                         key={key}
-                                        icon={cfg.icon}
-                                        type={cfg.type}
-                                        danger={cfg.danger || false}
-                                        style={cfg.style || {}}
+                                        variant={cfg.variant || "outline"}
+                                        className={cfg.className}
                                         onClick={() => handleActionClick(key)}
                                     >
+                                        <Icon className="h-4 w-4 mr-2" />
                                         {cfg.label}
                                     </Button>
                                 );
                             })}
-                        </Space>
+                        </div>
                     )}
                 </div>
 
-                {/* Request Info */}
-                <Card style={{ marginBottom: "24px" }}>
-                    <Descriptions bordered>
-                        <Descriptions.Item label="Request Number">
-                            {request.request_number}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Status">
-                            <Tag color={request.status_color}>
-                                {request.status_label}
-                            </Tag>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Requestor Name">
-                            {request.requestor_name}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Department">
-                            {request.requestor_department}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Product Line">
-                            {request.requestor_prodline}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Station">
-                            {request.requestor_station}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Created Date">
-                            {dayjs(request.created_at).format(
-                                "MMM D, YYYY h:mm A",
-                            )}
-                        </Descriptions.Item>
-                        {request.remarks && (
-                            <Descriptions.Item label="Remarks" span={3}>
-                                {request.remarks}
-                            </Descriptions.Item>
-                        )}
-                    </Descriptions>
-                </Card>
-
-                {/* Request Items */}
+                {/* Request Info Card */}
                 <Card>
-                    <Title level={4} style={{ marginBottom: "16px" }}>
-                        Request Items ({request.items?.length || 0})
-                    </Title>
-                    <Table
-                        columns={itemColumns}
-                        dataSource={request.items}
-                        rowKey="id"
-                        pagination={false}
-                        bordered
-                        size="middle"
-                    />
+                    <CardHeader>
+                        <CardTitle>Request Information</CardTitle>
+                        <CardDescription>
+                            Details of the request and requester
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Request Number
+                                </p>
+                                <p className="text-sm font-semibold">
+                                    {request.request_number}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Status
+                                </p>
+                                <Badge
+                                    className={cn(
+                                        "font-medium",
+                                        getStatusBadgeClass(
+                                            request.status_color,
+                                        ),
+                                    )}
+                                >
+                                    {request.status_label}
+                                </Badge>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Requestor Name
+                                </p>
+                                <p className="text-sm">
+                                    {request.requestor_name}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Department
+                                </p>
+                                <p className="text-sm">
+                                    {request.requestor_department}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Product Line
+                                </p>
+                                <p className="text-sm">
+                                    {request.requestor_prodline}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Station
+                                </p>
+                                <p className="text-sm">
+                                    {request.requestor_station}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Created Date
+                                </p>
+                                <p className="text-sm">
+                                    {dayjs(request.created_at).format(
+                                        "MMM D, YYYY h:mm A",
+                                    )}
+                                </p>
+                            </div>
+                            {request.remarks && (
+                                <div className="space-y-1 md:col-span-2 lg:col-span-3">
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Remarks
+                                    </p>
+                                    <p className="text-sm bg-muted p-3 rounded-md">
+                                        {request.remarks}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
                 </Card>
 
-                {/* Modal Component */}
+                {/* Request Items Card */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
+                            Request Items ({request.items?.length || 0})
+                        </CardTitle>
+                        <CardDescription>
+                            Items included in this request
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        {itemColumns.map((column) => (
+                                            <TableHead key={column.key}>
+                                                {column.label}
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {request.items?.length > 0 ? (
+                                        request.items.map((record) => (
+                                            <TableRow key={record.id}>
+                                                <TableCell>
+                                                    {record.id}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.category}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.type_of_request}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        className={getModeBadgeClass(
+                                                            record.request_mode,
+                                                        )}
+                                                    >
+                                                        {record.request_mode?.toUpperCase()}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.issued_to_name}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {record.location_name}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    {record.quantity}
+                                                </TableCell>
+                                                <TableCell className="max-w-[200px] truncate">
+                                                    {record.purpose_of_request}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        className={getStatusBadgeClass(
+                                                            record.item_status_color,
+                                                        )}
+                                                    >
+                                                        {
+                                                            record.item_status_label
+                                                        }
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {actions?.includes(
+                                                        "ISSUE",
+                                                    ) &&
+                                                    request.status === 3 &&
+                                                    record.item_status == 1 ? (
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                handleIssueItem(
+                                                                    record,
+                                                                )
+                                                            }
+                                                            className="flex items-center gap-1"
+                                                        >
+                                                            <Send className="h-3 w-3" />
+                                                            Issue
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            —
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={itemColumns.length}
+                                                className="text-center py-8 text-muted-foreground"
+                                            >
+                                                No items found
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Modals */}
                 <ActionRemarksModal
-                    visible={isModalVisible}
+                    open={isModalOpen}
+                    onClose={handleModalClose}
                     action={selectedAction}
-                    remarks={remarks}
-                    setRemarks={setRemarks}
-                    onOk={handleModalOk}
-                    onCancel={handleModalCancel}
                 />
 
-                {/* Issue Drawer Component */}
                 <IssueDrawer
-                    visible={isDrawerVisible}
+                    open={isDrawerOpen}
                     onClose={handleDrawerClose}
                     request={request}
                     item={selectedItem}
-                    onSuccess={handleIssueSuccess}
+                    onSuccess={() => window.location.reload()}
                 />
             </div>
         </AuthenticatedLayout>

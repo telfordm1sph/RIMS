@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Repositories\RequestTypeRepository;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class RequestTypeService
 {
@@ -21,14 +22,12 @@ class RequestTypeService
         return $this->repository->getAllGrouped();
     }
 
-
-
     /**
      * Get request types formatted for form
      */
     public function getRequestCatalog(): array
     {
-        $requestTypes = $this->repository->getAllActive(); // Eloquent Collection
+        $requestTypes = $this->repository->getAllActive();
 
         $catalog = $requestTypes->groupBy('request_category')->map(function ($group) {
             return [
@@ -39,20 +38,30 @@ class RequestTypeService
 
         return $catalog;
     }
+
     public function getLocationList()
     {
-
         return $this->repository->getLocationList();
     }
 
-
-
     /**
-     * Get all request types for table display (flat array)
+     * Get paginated request types for table display with filters
      */
-    public function getAllForTable()
+    public function getAllForTable(int $perPage = 10, int $page = 1, array $filters = []): array
     {
-        return $this->repository->getAllForTable();
+        $paginator = $this->repository->getAllForTable($perPage, $page, $filters);
+
+        return [
+            'data' => $paginator->items(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ]
+        ];
     }
 
     /**

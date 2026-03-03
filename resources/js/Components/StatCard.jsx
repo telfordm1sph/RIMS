@@ -1,129 +1,105 @@
 import React from "react";
-import { Row, Col, Card, Statistic } from "antd";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-    ClockCircleOutlined,
-    CheckCircleOutlined,
-    SyncOutlined,
-    FileTextOutlined,
-    CloseCircleOutlined,
-    StopOutlined,
-} from "@ant-design/icons";
-import { CircleCheckBigIcon, ThumbsDownIcon, ThumbsUpIcon } from "lucide-react";
+    Clock,
+    Check,
+    Loader2,
+    CheckCircle,
+    Slash,
+    ThumbsUp,
+    ThumbsDown,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export default function StatCard({ stats, activeStatus }) {
+export default function StatCard({ stats = {}, activeStatus, onStatusChange }) {
     const statusConfig = [
         {
             key: "New",
-            title: "New",
-            icon: <ClockCircleOutlined />,
             value: 1,
+            icon: <Clock className="text-yellow-500 h-6 w-6" />,
         },
         {
             key: "Triaged",
-            title: "Triaged",
-            icon: <ThumbsUpIcon />,
             value: 2,
+            icon: <ThumbsUp className="text-green-500 h-6 w-6" />,
         },
         {
             key: "Approved",
-            title: "Approved",
-            icon: <SyncOutlined />,
             value: 3,
+            icon: <Loader2 className="text-blue-500 h-6 w-6" />,
         },
         {
             key: "Issued",
-            title: "Issued",
-            icon: <CircleCheckBigIcon />,
             value: 4,
+            icon: <Check className="text-green-600 h-6 w-6" />,
         },
         {
             key: "Acknowledged",
-            title: "Acknowledged",
-            icon: <CheckCircleOutlined />,
             value: 5,
+            icon: <CheckCircle className="text-lime-500 h-6 w-6" />,
         },
         {
             key: "Canceled",
-            title: "Canceled",
-            icon: <StopOutlined />,
             value: 6,
+            icon: <Slash className="text-gray-400 h-6 w-6" />,
         },
         {
             key: "Disapproved",
-            title: "Disapproved",
-            icon: <ThumbsDownIcon />,
             value: 7,
+            icon: <ThumbsDown className="text-red-500 h-6 w-6" />,
         },
     ];
 
-    // Map Ant Design color names to hex values
+    // Color mapping for each status
     const colorMap = {
-        gold: "#faad14",
-        lime: "#a0d911",
-        green: "#52c41a",
-        blue: "#1890ff",
-        volcano: "#fa541c",
-        red: "#ff4d4f",
-        default: "#d9d9d9",
+        New: "border-yellow-500 bg-yellow-50",
+        Triaged: "border-green-500 bg-green-50",
+        Approved: "border-blue-500 bg-blue-50",
+        Issued: "border-green-600 bg-green-50",
+        Acknowledged: "border-lime-500 bg-lime-50",
+        Canceled: "border-gray-400 bg-gray-50",
+        Disapproved: "border-red-500 bg-red-50",
     };
 
     return (
-        <Row gutter={[12, 12]}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-4">
             {statusConfig.map((status) => {
-                const statusData = stats?.[status.key];
-                const count =
-                    typeof statusData === "object"
-                        ? statusData?.count
-                        : statusData;
-
-                // Get color from backend data, fallback to default
-                const colorName =
-                    typeof statusData === "object"
-                        ? statusData?.color
-                        : "default";
-                const hexColor = colorMap[colorName] || colorMap.default;
-
-                // Check if this card is active (matches the selected filter)
-                const isActive =
-                    activeStatus === status.value ||
-                    (activeStatus === "all" && status.key === "All");
+                const statusData = stats[status.key];
+                const count = statusData?.count || 0;
+                const isActive = activeStatus === status.value;
 
                 return (
-                    <Col xs={12} sm={12} md={8} lg={6} xl={3} key={status.key}>
-                        <Card
-                            size="small"
-                            variant="outlined"
-                            style={{
-                                borderColor: isActive ? hexColor : undefined,
-                                borderWidth: isActive ? 2 : 1,
-                                backgroundColor: isActive
-                                    ? `${hexColor}10`
-                                    : undefined,
-                                transition: "all 0.3s ease",
-                            }}
-                        >
-                            <Statistic
-                                title={status.title}
-                                value={count || 0}
-                                prefix={
-                                    <span style={{ color: hexColor }}>
-                                        {status.icon}
-                                    </span>
-                                }
-                                styles={{
-                                    content: {
-                                        value: {
-                                            color: hexColor,
-                                            fontSize: "1.25rem",
-                                            fontWeight: isActive ? 700 : 600,
-                                        },
-                                    },
-                                }}
-                            />
-                        </Card>
-                    </Col>
+                    <Card
+                        key={status.key}
+                        className={cn(
+                            "border-2 rounded-lg transition-all cursor-pointer hover:shadow-md",
+                            isActive
+                                ? colorMap[status.key]
+                                : "border-gray-200 hover:border-gray-300",
+                        )}
+                        onClick={() =>
+                            onStatusChange(isActive ? "all" : status.value)
+                        }
+                    >
+                        <CardContent className="flex flex-col items-center justify-between p-4 h-32">
+                            <span className="text-sm font-medium text-gray-600">
+                                {status.key}
+                            </span>
+                            <span
+                                className={cn(
+                                    "text-2xl font-bold",
+                                    isActive
+                                        ? "text-gray-900"
+                                        : "text-gray-700",
+                                )}
+                            >
+                                {count}
+                            </span>
+                            <div className="mt-auto">{status.icon}</div>
+                        </CardContent>
+                    </Card>
                 );
             })}
-        </Row>
+        </div>
     );
 }

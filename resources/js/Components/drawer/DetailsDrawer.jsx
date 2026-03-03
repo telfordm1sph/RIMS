@@ -1,34 +1,30 @@
 import React from "react";
-import {
-    Drawer,
-    Typography,
-    Descriptions,
-    Empty,
-    Spin,
-    Tabs,
-    Tag,
-    Button,
-    Space,
-    Card,
-    Table,
-} from "antd";
-import {
-    CheckCircleOutlined,
-    ClockCircleOutlined,
-    UserOutlined,
-    ToolOutlined,
-    PlusCircleOutlined,
-    MinusCircleOutlined,
-    EditOutlined,
-    CodeOutlined,
-    AppstoreOutlined,
-    HddOutlined,
-} from "@ant-design/icons";
 import dayjs from "dayjs";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+    CheckCircle,
+    Clock,
+    User,
+    Wrench,
+    PlusCircle,
+    MinusCircle,
+    Pencil,
+    HardDrive,
+    Boxes,
+    Code,
+} from "lucide-react";
 
-const { Title, Text } = Typography;
-
-const DetailsDrawer = ({
+export default function DetailsDrawer({
     visible,
     fieldGroups = [],
     issuanceData = null,
@@ -37,249 +33,221 @@ const DetailsDrawer = ({
     onAcknowledge,
     showAcknowledge = false,
     acknowledgeLoading = false,
-}) => {
+}) {
     // ==============================
-    // Operation Type Icon & Color
+    // Operation Config
     // ==============================
     const getOperationConfig = (type) => {
         switch (type) {
             case "add":
                 return {
-                    icon: <PlusCircleOutlined />,
-                    color: "green",
+                    icon: <PlusCircle className="w-4 h-4" />,
+                    className: "bg-green-100 text-green-700",
                     text: "Add",
                 };
             case "remove":
                 return {
-                    icon: <MinusCircleOutlined />,
-                    color: "red",
+                    icon: <MinusCircle className="w-4 h-4" />,
+                    className: "bg-red-100 text-red-700",
                     text: "Remove",
                 };
             case "replace":
                 return {
-                    icon: <EditOutlined />,
-                    color: "blue",
+                    icon: <Pencil className="w-4 h-4" />,
+                    className: "bg-blue-100 text-blue-700",
                     text: "Replace",
                 };
             default:
-                return { icon: <ToolOutlined />, color: "default", text: type };
+                return {
+                    icon: <Wrench className="w-4 h-4" />,
+                    className: "bg-muted text-muted-foreground",
+                    text: type,
+                };
         }
     };
+
+    // ==============================
+    // Key/Value Renderer
+    // ==============================
+    const renderKeyValue = (label, value) => (
+        <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="text-sm font-medium">{value || "-"}</p>
+        </div>
+    );
 
     // ==============================
     // Component Operations Table
     // ==============================
     const renderComponentOperations = () => {
         if (!issuanceData?.operations?.length) {
-            return <Empty description="No component operations" />;
+            return (
+                <p className="text-sm text-muted-foreground">
+                    No component operations
+                </p>
+            );
         }
 
-        const columns = [
-            {
-                title: "Operation",
-                key: "operation_type",
-                width: 100,
-                render: (_, record) => {
-                    const config = getOperationConfig(record.operation_type);
-                    return (
-                        <Tag color={config.color} icon={config.icon}>
-                            {config.text}
-                        </Tag>
-                    );
-                },
-            },
-            {
-                title: "Component Type",
-                dataIndex: "component_type",
-                key: "component_type",
-                width: 120,
-            },
-            {
-                title: "Component Details",
-                key: "details",
-                render: (_, record) => {
-                    if (record.operation_type === "replace") {
-                        return (
-                            <div style={{ display: "flex", gap: 16 }}>
-                                {/* Old Component */}
-                                <div style={{ flex: 1 }}>
-                                    <Text
-                                        type="danger"
-                                        style={{ fontSize: 12 }}
-                                    >
-                                        Removed:
-                                    </Text>
-                                    {record.old_component_data ? (
-                                        <div style={{ fontSize: 13 }}>
-                                            <div>
-                                                <Text strong>Brand:</Text>{" "}
-                                                {record.old_component_data
-                                                    .brand || "-"}
-                                            </div>
-                                            <div>
-                                                <Text strong>Model:</Text>{" "}
-                                                {record.old_component_data
-                                                    .model || "-"}
-                                            </div>
-                                            <div>
-                                                <Text strong>S/N:</Text>{" "}
-                                                {record.old_component_data
-                                                    .serial_number || "-"}
-                                            </div>
-                                            <div>
-                                                <Text strong>Condition:</Text>{" "}
-                                                {record.old_component_condition ||
-                                                    "-"}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <Text type="secondary">No data</Text>
-                                    )}
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <Text
-                                        type="success"
-                                        style={{ fontSize: 12 }}
-                                    >
-                                        Added:
-                                    </Text>
-                                    {record.new_component_data ? (
-                                        <div style={{ fontSize: 13 }}>
-                                            <div>
-                                                <Text strong>Brand:</Text>{" "}
-                                                {record.new_component_data
-                                                    .brand || "-"}
-                                            </div>
-                                            <div>
-                                                <Text strong>Model:</Text>{" "}
-                                                {record.new_component_data
-                                                    .model || "-"}
-                                            </div>
-                                            <div>
-                                                <Text strong>S/N:</Text>{" "}
-                                                {record.new_component_data
-                                                    .serial_number || "-"}
-                                            </div>
-                                            <div>
-                                                <Text strong>Condition:</Text>{" "}
-                                                {record.new_component_condition ||
-                                                    "-"}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <Text type="secondary">No data</Text>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    } else {
-                        // For add or remove operations
-                        const componentData =
-                            record.operation_type === "add"
-                                ? record.new_component_data
-                                : record.old_component_data;
-
-                        return componentData ? (
-                            <div style={{ fontSize: 13 }}>
-                                <div>
-                                    <Text strong>Brand:</Text>{" "}
-                                    {componentData.brand || "-"}
-                                </div>
-                                <div>
-                                    <Text strong>Model:</Text>{" "}
-                                    {componentData.model || "-"}
-                                </div>
-                                <div>
-                                    <Text strong>Serial Number:</Text>{" "}
-                                    {componentData.serial_number || "-"}
-                                </div>
-                                {componentData.part_type && (
-                                    <div>
-                                        <Text strong>Part Type:</Text>{" "}
-                                        {componentData.part_type}
-                                    </div>
-                                )}
-                                {componentData.specifications && (
-                                    <div>
-                                        <Text strong>Specs:</Text>{" "}
-                                        {componentData.specifications}
-                                    </div>
-                                )}
-                                <div>
-                                    <Text strong>Condition:</Text>{" "}
-                                    {record.operation_type === "add"
-                                        ? record.new_component_condition
-                                        : record.old_component_condition || "-"}
-                                </div>
-                            </div>
-                        ) : (
-                            <Text type="secondary">No details available</Text>
-                        );
-                    }
-                },
-            },
-            {
-                title: "Reason/Remarks",
-                key: "remarks",
-                width: 200,
-                render: (_, record) => (
-                    <div>
-                        {record.reason && (
-                            <div>
-                                <Text strong>Reason:</Text> {record.reason}
-                            </div>
-                        )}
-                        {record.remarks && (
-                            <div>
-                                <Text type="secondary">{record.remarks}</Text>
-                            </div>
-                        )}
-                    </div>
-                ),
-            },
-        ];
-
         return (
-            <Table
-                dataSource={issuanceData.operations}
-                columns={columns}
-                rowKey={(record, index) => index}
-                size="small"
-                pagination={false}
-                scroll={{ x: true }}
-            />
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="border-b">
+                        <tr>
+                            <th className="text-left py-2">Operation</th>
+                            <th className="text-left py-2">Component Type</th>
+                            <th className="text-left py-2">Details</th>
+                            <th className="text-left py-2">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {issuanceData.operations.map((op, i) => {
+                            const config = getOperationConfig(
+                                op.operation_type,
+                            );
+
+                            // Determine component data
+                            const oldComp = op.old_component_data;
+                            const newComp = op.new_component_data;
+
+                            return (
+                                <tr key={i} className="border-b">
+                                    <td className="py-3">
+                                        <Badge
+                                            className={`flex items-center gap-1 w-fit ${config.className}`}
+                                        >
+                                            {config.icon} {config.text}
+                                        </Badge>
+                                    </td>
+
+                                    <td>{op.component_type || "-"}</td>
+
+                                    <td className="py-3">
+                                        {op.operation_type === "replace" ? (
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div>
+                                                    <p className="text-xs text-red-600">
+                                                        Removed
+                                                    </p>
+                                                    <p>
+                                                        Brand:{" "}
+                                                        {oldComp?.brand || "-"}
+                                                    </p>
+                                                    <p>
+                                                        Model:{" "}
+                                                        {oldComp?.model || "-"}
+                                                    </p>
+                                                    <p>
+                                                        S/N:{" "}
+                                                        {oldComp?.serial_number ||
+                                                            "-"}
+                                                    </p>
+                                                    <p>
+                                                        Condition:{" "}
+                                                        {op.old_component_condition ||
+                                                            "-"}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-green-600">
+                                                        Added
+                                                    </p>
+                                                    <p>
+                                                        Brand:{" "}
+                                                        {newComp?.brand || "-"}
+                                                    </p>
+                                                    <p>
+                                                        Model:{" "}
+                                                        {newComp?.model || "-"}
+                                                    </p>
+                                                    <p>
+                                                        S/N:{" "}
+                                                        {newComp?.serial_number ||
+                                                            "-"}
+                                                    </p>
+                                                    <p>
+                                                        Condition:{" "}
+                                                        {op.new_component_condition ||
+                                                            "-"}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <p>
+                                                    Brand:{" "}
+                                                    {op.operation_type === "add"
+                                                        ? newComp?.brand
+                                                        : oldComp?.brand || "-"}
+                                                </p>
+                                                <p>
+                                                    Model:{" "}
+                                                    {op.operation_type === "add"
+                                                        ? newComp?.model
+                                                        : oldComp?.model || "-"}
+                                                </p>
+                                                <p>
+                                                    S/N:{" "}
+                                                    {op.operation_type === "add"
+                                                        ? newComp?.serial_number
+                                                        : oldComp?.serial_number ||
+                                                          "-"}
+                                                </p>
+                                                {op.operation_type === "add" &&
+                                                    newComp?.specifications && (
+                                                        <p>
+                                                            Specs:{" "}
+                                                            {
+                                                                newComp.specifications
+                                                            }
+                                                        </p>
+                                                    )}
+                                                <p>
+                                                    Condition:{" "}
+                                                    {op.operation_type === "add"
+                                                        ? op.new_component_condition
+                                                        : op.old_component_condition ||
+                                                          "-"}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    <td className="py-3">
+                                        {op.reason && (
+                                            <p>Reason: {op.reason}</p>
+                                        )}
+                                        {op.remarks && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {op.remarks}
+                                            </p>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
         );
     };
 
     // ==============================
-    // Sub-group renderer (Parts/Software)
+    // Render SubGroups (Parts / Software)
     // ==============================
     const renderSubGroups = (subGroups, emptyMessage) => {
-        if (!subGroups?.length) return <Empty description={emptyMessage} />;
+        if (!subGroups?.length)
+            return (
+                <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+            );
 
         return subGroups.map((sub, idx) => (
-            <div
-                key={idx}
-                style={{
-                    marginBottom: 16,
-                    padding: 12,
-                    border: "1px solid #f0f0f0",
-                    borderRadius: 6,
-                }}
-            >
-                <Title level={5} style={{ marginBottom: 12 }}>
-                    {sub.title}
-                </Title>
-                {!sub.fields?.length ? (
-                    <Empty description={`No ${sub.title} Data`} />
-                ) : (
-                    <Descriptions
-                        layout="vertical"
-                        size="small"
-                        column={sub.column || 2}
-                        bordered={false}
-                    >
-                        {sub.fields.map((field, i) => {
+            <Card key={idx} className="mb-4">
+                <CardHeader>
+                    <CardTitle>{sub.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                    {sub.fields?.length ? (
+                        sub.fields.map((field, i) => {
                             const value = field.value;
                             if (
                                 value &&
@@ -288,205 +256,165 @@ const DetailsDrawer = ({
                                 "color" in value
                             ) {
                                 return (
-                                    <Descriptions.Item
+                                    <Badge
                                         key={i}
-                                        label={field.label}
+                                        className={`w-fit ${value.color}`}
                                     >
-                                        <Tag color={value.color}>
-                                            {value.value}
-                                        </Tag>
-                                    </Descriptions.Item>
+                                        {value.value}
+                                    </Badge>
                                 );
                             }
-                            return (
-                                <Descriptions.Item key={i} label={field.label}>
-                                    {value || "-"}
-                                </Descriptions.Item>
-                            );
-                        })}
-                    </Descriptions>
-                )}
-            </div>
+                            return renderKeyValue(field.label, value);
+                        })
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            No {sub.title} Data
+                        </p>
+                    )}
+                </CardContent>
+            </Card>
         ));
     };
 
     // ==============================
-    // Issuance Tab Content
+    // Issuance Tab
     // ==============================
     const renderIssuanceTab = () => {
-        if (!issuanceData) return <Empty description="No Issuance Data" />;
+        if (!issuanceData)
+            return (
+                <p className="text-sm text-muted-foreground">
+                    No Issuance Data
+                </p>
+            );
 
         const ack = issuanceData.acknowledgement;
         const users = issuanceData.hardware_users || [];
 
         return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {/* Issuance Info */}
-                <Card size="small" title="Issuance Information">
-                    <Descriptions
-                        layout="vertical"
-                        size="small"
-                        column={2}
-                        bordered={false}
-                    >
-                        <Descriptions.Item label="Issuance No.">
-                            {issuanceData.issuance_number || "-"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Request No.">
-                            {issuanceData.request_number || "-"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Hostname">
-                            {issuanceData.hostname || "-"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Location">
-                            {issuanceData.location_name || "-"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Remarks">
-                            {issuanceData.remarks || "-"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Issued By">
-                            {issuanceData.creator_name || "-"}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Issued At">
-                            {issuanceData.created_at
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Issuance Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-6">
+                        {renderKeyValue(
+                            "Issuance No.",
+                            issuanceData.issuance_number,
+                        )}
+                        {renderKeyValue(
+                            "Request No.",
+                            issuanceData.request_number,
+                        )}
+                        {renderKeyValue("Hostname", issuanceData.hostname)}
+                        {renderKeyValue("Location", issuanceData.location_name)}
+                        {renderKeyValue("Remarks", issuanceData.remarks)}
+                        {renderKeyValue("Issued By", issuanceData.creator_name)}
+                        {renderKeyValue(
+                            "Issued At",
+                            issuanceData.created_at
                                 ? dayjs(issuanceData.created_at).format(
                                       "MMM D, YYYY hh:mm A",
                                   )
-                                : "-"}
-                        </Descriptions.Item>
-                    </Descriptions>
+                                : "-",
+                        )}
+                    </CardContent>
                 </Card>
 
-                {/* Component Operations */}
                 {issuanceData.operations?.length > 0 && (
-                    <Card
-                        size="small"
-                        title={
-                            <Space>
-                                <ToolOutlined />
-                                Component Operations
-                                <Tag color="blue">
-                                    {issuanceData.operations.length}
-                                </Tag>
-                            </Space>
-                        }
-                    >
-                        {renderComponentOperations()}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                Component Operations (
+                                {issuanceData.operations.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>{renderComponentOperations()}</CardContent>
                     </Card>
                 )}
 
-                {/* Assigned Hardware Users */}
-                <Card
-                    size="small"
-                    title={
-                        <Space>
-                            <UserOutlined />
-                            Assigned Users
-                        </Space>
-                    }
-                >
-                    {users.length ? (
-                        <div
-                            style={{
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: 8,
-                            }}
-                        >
-                            {users.map((hu) => (
-                                <Tag
-                                    key={hu.user_id}
-                                    color="blue"
-                                    icon={<UserOutlined />}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Assigned Users</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                        {users.length ? (
+                            users.map((u) => (
+                                <Badge
+                                    key={u.user_id}
+                                    className="bg-blue-100 text-blue-700 flex items-center gap-1"
                                 >
-                                    {hu.user_name}
-                                    {hu.date_assigned && (
-                                        <Text
-                                            type="secondary"
-                                            style={{
-                                                fontSize: 11,
-                                                marginLeft: 4,
-                                            }}
-                                        >
+                                    <User className="w-3 h-3" /> {u.user_name}
+                                    {u.date_assigned && (
+                                        <span className="text-xs text-muted-foreground ml-1">
                                             (since{" "}
-                                            {dayjs(hu.date_assigned).format(
+                                            {dayjs(u.date_assigned).format(
                                                 "MMM D, YYYY",
                                             )}
                                             )
-                                        </Text>
+                                        </span>
                                     )}
-                                </Tag>
-                            ))}
-                        </div>
-                    ) : (
-                        <Empty description="No assigned users" />
-                    )}
+                                </Badge>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No assigned users
+                            </p>
+                        )}
+                    </CardContent>
                 </Card>
 
-                {/* Acknowledgement Status */}
-                <Card
-                    size="small"
-                    title={
-                        <Space>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
                             {ack?.status === 1 ? (
-                                <CheckCircleOutlined
-                                    style={{ color: "#52c41a" }}
-                                />
+                                <CheckCircle className="w-4 h-4 text-green-600 mr-1" />
                             ) : (
-                                <ClockCircleOutlined
-                                    style={{ color: "#faad14" }}
-                                />
+                                <Clock className="w-4 h-4 text-yellow-500 mr-1" />
                             )}
                             Acknowledgement
-                        </Space>
-                    }
-                >
-                    {ack ? (
-                        <Descriptions
-                            layout="vertical"
-                            size="small"
-                            column={2}
-                            bordered={false}
-                        >
-                            <Descriptions.Item label="Status">
-                                <Tag color={ack.status_color || "gold"}>
-                                    {ack.status_label || "Pending"}
-                                </Tag>
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Acknowledged By">
-                                {ack.status === 1 ? (
-                                    ack.acknowledged_by_name || "-"
-                                ) : (
-                                    <Text type="secondary">
-                                        Not yet acknowledged
-                                    </Text>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-6">
+                        {ack ? (
+                            <>
+                                {renderKeyValue(
+                                    "Status",
+                                    <Badge
+                                        className={`w-fit ${ack.status_color || "bg-yellow-100 text-yellow-700"}`}
+                                    >
+                                        {ack.status_label || "Pending"}
+                                    </Badge>,
                                 )}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Acknowledged At">
-                                {ack.status === 1 && ack.acknowledged_at ? (
-                                    dayjs(ack.acknowledged_at).format(
-                                        "MMM D, YYYY hh:mm A",
-                                    )
-                                ) : (
-                                    <Text type="secondary">-</Text>
+                                {renderKeyValue(
+                                    "Acknowledged By",
+                                    ack.status === 1
+                                        ? ack.acknowledged_by_name
+                                        : "Not yet acknowledged",
                                 )}
-                            </Descriptions.Item>
-                            {ack.remarks && (
-                                <Descriptions.Item label="Remarks">
-                                    {ack.remarks}
-                                </Descriptions.Item>
-                            )}
-                        </Descriptions>
-                    ) : (
-                        <Empty description="No acknowledgement record" />
-                    )}
+                                {renderKeyValue(
+                                    "Acknowledged At",
+                                    ack.status === 1 && ack.acknowledged_at
+                                        ? dayjs(ack.acknowledged_at).format(
+                                              "MMM D, YYYY hh:mm A",
+                                          )
+                                        : "-",
+                                )}
+                                {ack.remarks &&
+                                    renderKeyValue("Remarks", ack.remarks)}
+                            </>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No acknowledgement record
+                            </p>
+                        )}
+                    </CardContent>
                 </Card>
             </div>
         );
     };
 
     // ==============================
-    // Tab Items
+    // Tabs
     // ==============================
     const hardwareGroup = fieldGroups.find(
         (g) => g.title === "Hardware Specifications",
@@ -494,120 +422,106 @@ const DetailsDrawer = ({
     const partsGroup = fieldGroups.find((g) => g.title === "Parts");
     const softwareGroup = fieldGroups.find((g) => g.title === "Software");
 
-    const tabsItems = [
-        {
-            key: "issuance",
-            label: (
-                <Space>
-                    <ToolOutlined />
-                    Issuance
-                    {issuanceData?.operations?.length > 0 && (
-                        <Tag size="small" color="blue">
-                            {issuanceData.operations.length}
-                        </Tag>
-                    )}
-                </Space>
-            ),
-            children: renderIssuanceTab(),
-        },
-        {
-            key: "hardware",
-            label: (
-                <Space>
-                    <HddOutlined />
-                    Hardware
-                </Space>
-            ),
-            children: hardwareGroup?.fields?.length ? (
-                <Descriptions
-                    layout="vertical"
-                    size="small"
-                    column={hardwareGroup.column || 2}
-                    bordered={false}
-                >
-                    {hardwareGroup.fields.map((field, i) => {
-                        const value = field.value;
-                        if (
-                            value &&
-                            typeof value === "object" &&
-                            "value" in value &&
-                            "color" in value
-                        ) {
-                            return (
-                                <Descriptions.Item key={i} label={field.label}>
-                                    <Tag color={value.color}>{value.value}</Tag>
-                                </Descriptions.Item>
-                            );
-                        }
-                        return (
-                            <Descriptions.Item key={i} label={field.label}>
-                                {value || "-"}
-                            </Descriptions.Item>
-                        );
-                    })}
-                </Descriptions>
-            ) : (
-                <Empty description="No Hardware Data" />
-            ),
-        },
-        {
-            key: "parts",
-            label: (
-                <Space>
-                    <AppstoreOutlined />
-                    Parts
-                </Space>
-            ),
-            children: renderSubGroups(partsGroup?.subGroups, "No Parts Data"),
-        },
-        {
-            key: "software",
-            label: (
-                <Space>
-                    <CodeOutlined />
-                    Software
-                </Space>
-            ),
-            children: renderSubGroups(
-                softwareGroup?.subGroups,
-                "No Software Data",
-            ),
-        },
-    ];
-
     return (
-        <Drawer
-            title="Issuance Details"
-            placement="right"
-            size={950}
-            open={visible}
-            onClose={onClose}
-            footer={
-                showAcknowledge && (
-                    <Space
-                        style={{ width: "100%", justifyContent: "flex-end" }}
-                    >
-                        <Button onClick={onClose}>Cancel</Button>
-                        <Button
-                            type="primary"
-                            onClick={onAcknowledge}
-                            loading={acknowledgeLoading}
-                            disabled={acknowledgeLoading}
-                            icon={<CheckCircleOutlined />}
-                        >
-                            Acknowledge
-                        </Button>
-                    </Space>
-                )
-            }
-        >
-            {loading ? (
-                <Spin />
-            ) : (
-                <Tabs defaultActiveKey="issuance" items={tabsItems} />
-            )}
-        </Drawer>
-    );
-};
+        <Sheet open={visible} onOpenChange={onClose}>
+            <SheetContent
+                side="right"
+                className="!max-w-[950px] w-full p-0 flex flex-col gap-0"
+                showCloseButton={false}
+            >
+                <SheetHeader className="px-6 py-4 border-b border-border/60 bg-card/80 flex-shrink-0">
+                    <SheetTitle>Issuance Details</SheetTitle>
+                </SheetHeader>
 
-export default DetailsDrawer;
+                {loading ? (
+                    <div className="flex justify-center py-10">
+                        <Clock className="animate-spin w-6 h-6" />
+                    </div>
+                ) : (
+                    <Tabs
+                        defaultValue="issuance"
+                        className="px-6 py-5 space-y-5 overflow-y-auto"
+                    >
+                        <TabsList>
+                            <TabsTrigger value="issuance">
+                                <Wrench className="w-4 h-4 mr-1" />
+                                Issuance
+                            </TabsTrigger>
+                            <TabsTrigger value="hardware">
+                                <HardDrive className="w-4 h-4 mr-1" />
+                                Hardware
+                            </TabsTrigger>
+                            <TabsTrigger value="parts">
+                                <Boxes className="w-4 h-4 mr-1" />
+                                Parts
+                            </TabsTrigger>
+                            <TabsTrigger value="software">
+                                <Code className="w-4 h-4 mr-1" />
+                                Software
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="issuance">
+                            {renderIssuanceTab()}
+                        </TabsContent>
+
+                        <TabsContent value="hardware">
+                            {hardwareGroup?.fields?.length ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    {hardwareGroup.fields.map((f, i) =>
+                                        f.value?.value && f.value?.color ? (
+                                            <Badge
+                                                key={i}
+                                                className={`w-fit ${f.value.color}`}
+                                            >
+                                                {f.value.value}
+                                            </Badge>
+                                        ) : (
+                                            renderKeyValue(f.label, f.value)
+                                        ),
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No Hardware Data
+                                </p>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="parts">
+                            {renderSubGroups(
+                                partsGroup?.subGroups,
+                                "No Parts Data",
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="software">
+                            {renderSubGroups(
+                                softwareGroup?.subGroups,
+                                "No Software Data",
+                            )}
+                        </TabsContent>
+                    </Tabs>
+                )}
+
+                {showAcknowledge && (
+                    <>
+                        <Separator className="my-4" />
+                        <div className="flex justify-end gap-3">
+                            <Button variant="outline" onClick={onClose}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={onAcknowledge}
+                                disabled={acknowledgeLoading}
+                            >
+                                <CheckCircle className="w-4 h-4 mr-2" />{" "}
+                                Acknowledge
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </SheetContent>
+        </Sheet>
+    );
+}

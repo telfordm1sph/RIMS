@@ -15,11 +15,20 @@ class RequestTypeController extends Controller
         $this->service = $service;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $requestTypes = $this->service->getAllForTable();
+        $perPage = $request->get('per_page', 10);
+        $page = $request->get('page', 1);
+
+        // Decode filters if present
+        $filters = $this->decodeFilters($request->get('filters'));
+
+        $result = $this->service->getAllForTable($perPage, $page, $filters);
+
         return Inertia::render('Admin/RequestType', [
-            'requestTypes' => $requestTypes
+            'requestTypes' => $result['data'],
+            'pagination' => $result['pagination'],
+            'filters' => $filters // Pass decoded filters back to frontend
         ]);
     }
 
@@ -111,6 +120,20 @@ class RequestTypeController extends Controller
                 'success' => false,
                 'message' => 'Failed to delete request type: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    protected function decodeFilters(?string $filters): array
+    {
+        if (!$filters) {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode(base64_decode($filters), true);
+            return is_array($decoded) ? $decoded : [];
+        } catch (\Exception $e) {
+            return [];
         }
     }
 }

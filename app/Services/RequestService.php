@@ -249,6 +249,11 @@ class RequestService
         $formattedItems = $request->items->map(function ($item) use ($users, $locations) {
             $itemArray = $item->toArray();
 
+            // Force location to integer
+            $itemArray['location'] = $item->location !== null
+                ? (int) $item->location
+                : null;
+
             // Add employee name if issued_to exists
             if (!empty($item->issued_to)) {
                 $itemArray['issued_to_name'] = $users[$item->issued_to] ?? 'Unknown';
