@@ -15,34 +15,20 @@ class InventoryController extends Controller
         $this->inventoryService = $inventoryService;
     }
 
-    /**
-     * Get hostnames from local repository
-     */
-    public function getHostNames(Request $request)
+  
+    public function getHostNames()
     {
-        $type_of_request = $request->input('type_of_request');
-        $hostnames = $this->inventoryService->getHostNames($type_of_request);
+       
+        $hostnames = $this->inventoryService->getHostnamesList();
         return response()->json($hostnames);
     }
-
-    /**
-     * Get hardware details from local repository
-     */
-    public function getHardwareDetails(Request $request)
+    public function getHostNamesOrSerials(Request $request)
     {
-        $search = $request->input('search');
-
-        if (!$search) {
-            return response()->json(['success' => false, 'message' => 'No hostname or serial provided']);
-        }
-
-        $hardware = $this->inventoryService->getHardwareDetails($search);
-
-        if (!$hardware) {
-            return response()->json(['success' => false, 'message' => 'Hardware not found']);
-        }
-
-        return response()->json(['success' => true, 'item' => $hardware]);
+        $type_of_request = $request->input('type_of_request');
+        
+        $hostnames = $this->inventoryService->getHostNamesOrSerials($type_of_request);
+      
+        return response()->json($hostnames);
     }
 
     /**

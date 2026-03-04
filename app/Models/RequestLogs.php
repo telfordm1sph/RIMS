@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class RequestLogs extends Model
 {
     protected $table = 'request_logs'; // new unified log table
-
+   
     protected $fillable = [
         'loggable_type',
         'loggable_id',

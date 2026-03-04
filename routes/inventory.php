@@ -3,12 +3,12 @@
 use App\Http\Controllers\InventoryController;
 use Illuminate\Support\Facades\Route;
 
-$app_name = $app_name ?? env('APP_NAME', 'app');
+$app_name = $app_name ?? config('app.name');
 
 Route::prefix($app_name)->group(function () {
 
-    // Local repository routes
     Route::get('/hostnames', [InventoryController::class, 'getHostNames'])->name('hostnames.list');
+    Route::get('/hostnames-or-serials', [InventoryController::class, 'getHostNamesOrSerials'])->name('hostnames.or.serials.list');
     Route::get('/hardware/details', [InventoryController::class, 'getHardwareDetails'])->name('hardware.details');
 
     // Parts cascading options (query params)

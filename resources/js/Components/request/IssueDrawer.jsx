@@ -47,9 +47,13 @@ const IssueDrawer = ({ open, onClose, request, item, onSuccess }) => {
         const fetchHostnames = async () => {
             if (item?.type_of_request) {
                 try {
-                    const response = await axios.get(route("hostnames.list"), {
-                        params: { type_of_request: item.type_of_request },
-                    });
+                    const response = await axios.get(
+                        route("hostnames.or.serials.list"),
+                        {
+                            params: { type_of_request: item.type_of_request },
+                        },
+                    );
+
                     setHostnames(
                         response.data.map((host) => ({
                             value: host.hostname || host.serial_number,

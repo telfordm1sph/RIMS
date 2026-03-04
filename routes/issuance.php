@@ -3,7 +3,7 @@
 use App\Http\Controllers\IssuanceController;
 use Illuminate\Support\Facades\Route;
 
-$app_name = $app_name ?? env('APP_NAME', 'app');
+$app_name = $app_name ?? config('app.name');
 
 Route::prefix($app_name)
     ->group(function () {

@@ -39,6 +39,7 @@ class RequestController extends Controller
             'employees' => $employees,
         ]);
     }
+
     public function getStaffList(string $empId)
     {
         $staffList = $this->userRoleService->getStaffList($empId);

@@ -40,7 +40,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'appName' => config('app.name'), // This pulls from .env
-            'display_name' => env('APP_DISPLAY_NAME', ''),
+            'display_name' => config('app.name', ''),
         ];
     }
 }

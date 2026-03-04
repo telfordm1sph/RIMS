@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Repositories\InventoryRepository;
+
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+
 
 class IssuanceService
 {
@@ -15,8 +15,8 @@ class IssuanceService
     public function __construct()
     {
 
-        $this->baseUrl = env('INVENTORY_API_URL', 'http://127.0.0.1:8000/api');
-        $this->token = env('INVENTORY_API_TOKEN');
+        $this->baseUrl = config('services.inventory.url');
+        $this->token   = config('services.inventory.token');
     }
 
     /**
@@ -141,15 +141,15 @@ class IssuanceService
     {
         $endpoint = "issuance/table";
 
-        // Send filters in 'f' and employee_id as separate field
         $payload = [
             'f' => base64_encode(json_encode($filters)),
-            'employee_id' => $employeeId  // ✅ Direct in request body
+            'employee_id' => $employeeId
         ];
 
-        return $this->post($endpoint, $payload);
-    }
+        $response = $this->post($endpoint, $payload);
 
+       return $response;
+    }
 
     public function acknowledgeIssuance(int $id, array $data)
     {

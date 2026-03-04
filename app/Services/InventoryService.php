@@ -2,21 +2,21 @@
 
 namespace App\Services;
 
-use App\Repositories\InventoryRepository;
+
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class InventoryService
 {
-    protected InventoryRepository $inventoryRepository;
+
     protected string $baseUrl;
     protected string $token;
 
-    public function __construct(InventoryRepository $inventoryRepository)
+    public function __construct()
     {
-        $this->inventoryRepository = $inventoryRepository;
-        $this->baseUrl = env('INVENTORY_API_URL', 'http://127.0.0.1:8000/api');
-        $this->token = env('INVENTORY_API_TOKEN');
+        
+     $this->baseUrl = config('services.inventory.url');
+    $this->token   = config('services.inventory.token');
     }
 
     /**
@@ -138,8 +138,27 @@ class InventoryService
             'data' => is_array($response) ? $response : ($response['data'] ?? []),
         ];
     }
+    public function getHostnamesList()
+    {
+            $endpoint = "hardware/hostnames";
+            $response = $this->get($endpoint);
 
-    /**
+            return [
+                'success' => true,
+                'data' => is_array($response) ? $response : ($response['data'] ?? []),
+            ];
+    }
+
+    public function getHostNamesOrSerials($type_of_request)
+    {
+        $endpoint = "hardware/hostnames-or-serials/{$type_of_request}";
+        $response = $this->get($endpoint);
+
+        return array_is_list($response) ? $response : ($response['data'] ?? []);
+
+    }
+
+ /**
      * Get software list for a hardware
      */
     public function getSoftwaresList($hostname)
@@ -230,19 +249,5 @@ class InventoryService
         return $this->put($endpoint, $data);
     }
 
-    /**
-     * Repository: Get hostnames (local DB)
-     */
-    public function getHostNames($type_of_request)
-    {
-        return $this->inventoryRepository->getHostNames($type_of_request);
-    }
-
-    /**
-     * Repository: Get hardware details (local DB)
-     */
-    public function getHardwareDetails($search)
-    {
-        return $this->inventoryRepository->getHardwareDetails($search);
-    }
+    
 }

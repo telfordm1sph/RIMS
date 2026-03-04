@@ -9,6 +9,7 @@ class RequestItem extends Model
 {
     use Loggable;
     protected $table = 'request_items';
+ 
     protected $fillable = [
         'request_id',
         'category',

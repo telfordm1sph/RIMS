@@ -9,6 +9,7 @@ class Request extends Model
 {
     use Loggable;
     protected $table = 'requests';
+
     protected $fillable = [
         'request_number',
         'requestor_id',
